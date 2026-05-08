@@ -1,0 +1,109 @@
+#!/usr/bin/env bash
+set -u
+
+LOG_FILE="/var/log/lazylead-vpn-installer.log"
+APP_SCRIPTS_DIR="/Applications/Lazylead VPN.app/Contents/Resources/scripts"
+LIBEXEC_DIR="/usr/local/libexec/lazylead-vpn"
+SUDOERS_FILE="/etc/sudoers.d/lazylead-vpn"
+
+log() {
+  printf '[%s] %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$*" >> "${LOG_FILE}"
+}
+
+find_limactl() {
+  if command -v limactl >/dev/null 2>&1; then
+    command -v limactl
+    return 0
+  fi
+
+  for candidate in /opt/homebrew/bin/limactl /usr/local/bin/limactl; do
+    if [ -x "${candidate}" ]; then
+      printf '%s\n' "${candidate}"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+find_brew() {
+  for candidate in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+    if [ -x "${candidate}" ]; then
+      printf '%s\n' "${candidate}"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+run_as_console_user() {
+  local console_user
+  console_user="$(stat -f '%Su' /dev/console 2>/dev/null || true)"
+
+  if [ -z "${console_user}" ] || [ "${console_user}" = "root" ]; then
+    "$@"
+    return $?
+  fi
+
+  /usr/bin/sudo -H -u "${console_user}" "$@"
+}
+
+log "Lazylead VPN installer postinstall started"
+
+install_passwordless_sudo() {
+  local tmp_sudoers
+  tmp_sudoers="$(mktemp)"
+
+  if [ ! -d "${APP_SCRIPTS_DIR}" ]; then
+    log "Bundled scripts not found at ${APP_SCRIPTS_DIR}; skipping sudoers setup"
+    rm -f "${tmp_sudoers}"
+    return 0
+  fi
+
+  mkdir -p "${LIBEXEC_DIR}"
+  install -o root -g wheel -m 0755 "${APP_SCRIPTS_DIR}/host_checkpoint_gateway_route.sh" "${LIBEXEC_DIR}/host_checkpoint_gateway_route.sh"
+  install -o root -g wheel -m 0755 "${APP_SCRIPTS_DIR}/host_corporate_routes.sh" "${LIBEXEC_DIR}/host_corporate_routes.sh"
+  install -o root -g wheel -m 0755 "${APP_SCRIPTS_DIR}/vm_corporate_router.sh" "${LIBEXEC_DIR}/vm_corporate_router.sh"
+
+  cat > "${tmp_sudoers}" <<'SUDOERS'
+# Lazylead VPN allows members of the local admin group to run only the
+# route/DNS commands required by the menu bar app without repeated prompts.
+%admin ALL=(root) NOPASSWD: /usr/local/libexec/lazylead-vpn/host_checkpoint_gateway_route.sh install
+%admin ALL=(root) NOPASSWD: /usr/local/libexec/lazylead-vpn/host_checkpoint_gateway_route.sh remove
+%admin ALL=(root) NOPASSWD: /usr/local/libexec/lazylead-vpn/host_corporate_routes.sh install 192.168.64.2
+%admin ALL=(root) NOPASSWD: /usr/local/libexec/lazylead-vpn/host_corporate_routes.sh remove 192.168.64.2
+SUDOERS
+
+  chmod 0440 "${tmp_sudoers}"
+  if visudo -cf "${tmp_sudoers}" >> "${LOG_FILE}" 2>&1; then
+    install -o root -g wheel -m 0440 "${tmp_sudoers}" "${SUDOERS_FILE}"
+    log "Installed passwordless sudo rules at ${SUDOERS_FILE}"
+  else
+    log "sudoers validation failed; passwordless sudo was not installed"
+  fi
+
+  rm -f "${tmp_sudoers}"
+}
+
+install_passwordless_sudo
+
+if find_limactl >/dev/null; then
+  log "Lima already installed: $(find_limactl)"
+  log "VPN routes are applied by Lazylead VPN on Connect, not during installation"
+  exit 0
+fi
+
+if brew_path="$(find_brew)"; then
+  log "Lima not found; attempting Homebrew install via ${brew_path}"
+  if run_as_console_user "${brew_path}" install lima >> "${LOG_FILE}" 2>&1; then
+    log "Lima installation completed"
+  else
+    log "Lima installation failed; install continues and app will report missing limactl"
+  fi
+else
+  log "Homebrew not found; skipping Lima installation"
+fi
+
+log "VPN routes are applied by Lazylead VPN on Connect, not during installation"
+exit 0
