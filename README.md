@@ -72,6 +72,58 @@ LAZYLEAD_CORPORATE_PROBE_IP="10.0.0.1"
 LAZYLEAD_VPN_CONFIG="/usr/local/etc/lazylead-vpn/env"
 ```
 
+The IP addresses shown above are placeholders, not secrets:
+
+- `10.0.0.0/8` examples are private RFC1918 ranges.
+- `192.168.64.2` is the usual Lima VZ NAT guest address on macOS.
+- `203.0.113.10` is from RFC5737 TEST-NET-3 documentation space.
+- `1.1.1.1` and `9.9.9.9` are public recursive DNS resolvers.
+
+## Lima VM Setup
+
+The app expects a Lima VM that can run the Linux Check Point client and expose
+its tunnel back to the macOS host.
+
+Create a VM from the included neutral template:
+
+```bash
+limactl start --name=lazylead-vpn ./examples/lima-vm.yaml
+```
+
+Install base tools inside the VM:
+
+```bash
+limactl shell lazylead-vpn -- sudo apt-get update
+limactl shell lazylead-vpn -- sudo apt-get install -y curl ca-certificates iproute2 iptables dnsutils
+```
+
+Install `snx-rs` inside the VM using the package that matches your environment
+and your organization's Check Point gateway. Keep downloaded VPN packages and
+generated config files outside this repository.
+
+One generic package-install flow looks like this:
+
+```bash
+limactl copy /path/to/snx-rs-package.deb lazylead-vpn:/tmp/snx-rs-package.deb
+limactl shell lazylead-vpn -- sudo apt-get install -y /tmp/snx-rs-package.deb
+```
+
+Create the `snx-rs` config inside the VM according to your organization's
+Check Point setup:
+
+```bash
+limactl shell lazylead-vpn -- mkdir -p ~/.config/snx-rs
+limactl shell lazylead-vpn
+$EDITOR ~/.config/snx-rs/snx-rs.conf
+```
+
+Then update the local app config on macOS:
+
+```bash
+sudo mkdir -p /usr/local/etc/lazylead-vpn
+sudo install -m 0644 /path/to/local-lazylead-vpn.env /usr/local/etc/lazylead-vpn/env
+```
+
 ## Build
 
 ```bash

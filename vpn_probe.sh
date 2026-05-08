@@ -5,14 +5,14 @@ usage() {
   cat <<'USAGE'
 Usage:
   ./vpn_probe.sh --label checkpoint host1.example.com host2.example.com
-  ./vpn_probe.sh --label paper host1.example.com
+  ./vpn_probe.sh --label secondary host1.example.com
 
 The script is read-only. It writes a timestamped report under ./vpn-probe-reports.
 
 Recommended flow:
   1. Disconnect all VPNs, then run: ./vpn_probe.sh --label baseline host.example.com
   2. Connect Check Point only, then run: ./vpn_probe.sh --label checkpoint host.example.com
-  3. Connect Paper VPN only, then run: ./vpn_probe.sh --label paper host.example.com
+  3. Connect the other VPN only, then run: ./vpn_probe.sh --label secondary host.example.com
   4. If both can stay connected for a moment, run: ./vpn_probe.sh --label both host.example.com
 USAGE
 }
@@ -133,7 +133,7 @@ run "default IPv6 route" route -n get -inet6 default
 section "VPN-ish processes"
 run "process scan" ps ax -o pid,ppid,user,command
 run "network extensions" systemextensionsctl list
-run "launch agents scan" sh -c "launchctl list | egrep -i 'checkpoint|check point|paper|vpn|wireguard|openvpn|tunnel|ipsec|ike|utun|network' || true"
+run "launch agents scan" sh -c "launchctl list | egrep -i 'checkpoint|check point|vpn|wireguard|openvpn|tunnel|ipsec|ike|utun|network' || true"
 
 section "Packet filter"
 run "pf status" pfctl -s info
@@ -147,5 +147,5 @@ cat <<EOF
 Report written to:
   ${out_file}
 
-Run this once per state: baseline, checkpoint, paper, and both if possible.
+Run this once per state: baseline, checkpoint, secondary, and both if possible.
 EOF

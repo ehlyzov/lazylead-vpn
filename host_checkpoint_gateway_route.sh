@@ -31,7 +31,7 @@ Usage:
 
 Purpose:
   Force the Check Point gateway itself to go through the normal Wi-Fi/LAN
-  gateway instead of Paper/Pepper VPN. This is only for bootstrapping the
+  gateway instead of another VPN. This is only for bootstrapping the
   Check Point tunnel inside the VM.
 
 Environment:
