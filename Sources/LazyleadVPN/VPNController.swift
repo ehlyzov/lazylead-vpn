@@ -19,6 +19,7 @@ final class VPNController {
     let vmGateway: String
     let bootstrapProbeIP: String
     let corporateProbeIP: String
+    let samlBrowserApp: String?
     var onStateChange: ((VPNState) -> Void)?
     var onSAMLURLChange: (() -> Void)?
     private(set) var lastSAMLURL: URL?
@@ -43,12 +44,14 @@ final class VPNController {
         let resolvedGatewayProbeURL = environment["LAZYLEAD_GATEWAY_PROBE_URL"].flatMap { $0.isEmpty ? nil : $0 } ?? "https://vpn.example.com/clients/"
         let resolvedBootstrapProbeIP = environment["LAZYLEAD_BOOTSTRAP_PROBE_IP"].flatMap { $0.isEmpty ? nil : $0 } ?? "203.0.113.10"
         let resolvedCorporateProbeIP = environment["LAZYLEAD_CORPORATE_PROBE_IP"].flatMap { $0.isEmpty ? nil : $0 } ?? "10.0.0.1"
+        let resolvedSAMLBrowserApp = environment["LAZYLEAD_SAML_BROWSER_APP"].flatMap { $0.isEmpty ? nil : $0 }
 
         self.projectDirectory = resolvedProjectDirectory
         self.vmName = resolvedVMName
         self.vmGateway = resolvedVMGateway
         self.bootstrapProbeIP = resolvedBootstrapProbeIP
         self.corporateProbeIP = resolvedCorporateProbeIP
+        self.samlBrowserApp = resolvedSAMLBrowserApp
         self.commands = VPNCommandFactory(
             projectDirectory: resolvedProjectDirectory,
             vmName: resolvedVMName,
@@ -136,7 +139,7 @@ final class VPNController {
         }
 
         logStore.append("SAML URL reopened from menu")
-        NSWorkspace.shared.open(lastSAMLURL)
+        openSAMLURL(lastSAMLURL)
     }
 
     private func startSNX() {
@@ -169,7 +172,7 @@ final class VPNController {
             onSAMLURLChange?()
             logStore.append("SAML URL parsed and opened")
             DispatchQueue.main.async {
-                NSWorkspace.shared.open(url)
+                self.openSAMLURL(url)
             }
         }
 
@@ -322,6 +325,25 @@ final class VPNController {
         process.waitUntilExit()
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
         return String(data: data, encoding: .utf8)
+    }
+
+    private func openSAMLURL(_ url: URL) {
+        guard let samlBrowserApp else {
+            NSWorkspace.shared.open(url)
+            return
+        }
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+        process.arguments = ["-a", samlBrowserApp, url.absoluteString]
+
+        do {
+            try process.run()
+            logStore.append("SAML URL opened with \(samlBrowserApp)")
+        } catch {
+            logStore.append("Failed to open SAML URL with \(samlBrowserApp); falling back to default browser")
+            NSWorkspace.shared.open(url)
+        }
     }
 
     private func ensureLimactlExists() throws {

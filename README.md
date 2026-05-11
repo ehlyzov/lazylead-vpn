@@ -69,6 +69,7 @@ LAZYLEAD_SNX_CONFIG_PATH='$HOME/.config/snx-rs/snx-rs.conf'
 LAZYLEAD_GATEWAY_PROBE_URL="https://vpn.example.com/clients/"
 LAZYLEAD_BOOTSTRAP_PROBE_IP="203.0.113.10"
 LAZYLEAD_CORPORATE_PROBE_IP="10.0.0.1"
+LAZYLEAD_SAML_BROWSER_APP="Safari"
 LAZYLEAD_VPN_CONFIG="/usr/local/etc/lazylead-vpn/env"
 ```
 
