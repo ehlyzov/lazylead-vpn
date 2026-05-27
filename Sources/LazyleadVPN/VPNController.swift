@@ -37,14 +37,14 @@ final class VPNController {
         self.adminRunner = AdminScriptRunner(logStore: logStore)
 
         let resolvedProjectDirectory = Self.resolveProjectDirectory()
-        let environment = ProcessInfo.processInfo.environment
-        let resolvedVMName = environment["LAZYLEAD_VM_NAME"].flatMap { $0.isEmpty ? nil : $0 } ?? "lazylead-vpn"
-        let resolvedVMGateway = environment["LAZYLEAD_VM_GATEWAY"].flatMap { $0.isEmpty ? nil : $0 } ?? "192.168.64.2"
-        let resolvedSNXConfigPath = environment["LAZYLEAD_SNX_CONFIG_PATH"].flatMap { $0.isEmpty ? nil : $0 } ?? "$HOME/.config/snx-rs/snx-rs.conf"
-        let resolvedGatewayProbeURL = environment["LAZYLEAD_GATEWAY_PROBE_URL"].flatMap { $0.isEmpty ? nil : $0 } ?? "https://vpn.example.com/clients/"
-        let resolvedBootstrapProbeIP = environment["LAZYLEAD_BOOTSTRAP_PROBE_IP"].flatMap { $0.isEmpty ? nil : $0 } ?? "203.0.113.10"
-        let resolvedCorporateProbeIP = environment["LAZYLEAD_CORPORATE_PROBE_IP"].flatMap { $0.isEmpty ? nil : $0 } ?? "10.0.0.1"
-        let resolvedSAMLBrowserApp = environment["LAZYLEAD_SAML_BROWSER_APP"].flatMap { $0.isEmpty ? nil : $0 }
+        let environment = AppEnvironment()
+        let resolvedVMName = environment["LAZYLEAD_VM_NAME"] ?? "lazylead-vpn"
+        let resolvedVMGateway = environment["LAZYLEAD_VM_GATEWAY"] ?? "192.168.64.2"
+        let resolvedSNXConfigPath = environment["LAZYLEAD_SNX_CONFIG_PATH"] ?? "$HOME/.config/snx-rs/snx-rs.conf"
+        let resolvedGatewayProbeURL = environment["LAZYLEAD_GATEWAY_PROBE_URL"] ?? "https://vpn.example.com/clients/"
+        let resolvedBootstrapProbeIP = environment["LAZYLEAD_BOOTSTRAP_PROBE_IP"] ?? "203.0.113.10"
+        let resolvedCorporateProbeIP = environment["LAZYLEAD_CORPORATE_PROBE_IP"] ?? "10.0.0.1"
+        let resolvedSAMLBrowserApp = environment["LAZYLEAD_SAML_BROWSER_APP"]
 
         self.projectDirectory = resolvedProjectDirectory
         self.vmName = resolvedVMName
@@ -59,7 +59,9 @@ final class VPNController {
             snxConfigPath: resolvedSNXConfigPath,
             gatewayProbeURL: resolvedGatewayProbeURL
         )
+        logStore.append("CONFIG \(environment.configPath) loaded=\(environment.loadedConfig)")
         logStore.append("PROJECT \(resolvedProjectDirectory)")
+        logStore.append("VM \(resolvedVMName) gateway=\(resolvedVMGateway)")
         startHealthTimer()
     }
 
