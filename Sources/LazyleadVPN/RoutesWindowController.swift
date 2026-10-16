@@ -152,7 +152,7 @@ final class RoutesWindowController: NSWindowController, NSTableViewDataSource, N
         root.addArrangedSubview(footer)
         footer.widthAnchor.constraint(equalTo: root.widthAnchor).isActive = true
         let note = NSTextField(wrappingLabelWithString:
-            "IPv4 configuration, not a live traffic monitor. Shared IP addresses can also route other sites through Lima. Apps using their own DNS may bypass domain rules.")
+            "IPv4 configuration, not a live traffic monitor. More-specific routes can override prefixes; shared IPs and custom DNS can affect the actual path.")
         note.font = .systemFont(ofSize: 11)
         note.textColor = .secondaryLabelColor
         root.addArrangedSubview(note)
@@ -192,8 +192,9 @@ final class RoutesWindowController: NSWindowController, NSTableViewDataSource, N
         } else {
             let names = value.dnsRules.map(\.displayDomain).joined(separator: ", ")
             let service = value.dnsRules.contains(where: \.usesLocalProxy)
-                ? (value.dnsServiceRunning == true ? " Local DNS service is running." : " Local DNS service status is unavailable or stopped.") : ""
-            domains.stringValue = "\(names) and all their subdomains.\(service) IP routes are added as names resolve."
+                ? (value.dnsServiceRunning == true ? " Local DNS service is running; it adds IP routes as names resolve." : " Local DNS service status is unavailable or stopped.")
+                : " DNS servers use installed routes through Lima."
+            domains.stringValue = "\(names) and all their subdomains.\(service)"
         }
         if let networks = value.cloudNetworks, !networks.isEmpty {
             cloud.stringValue = value.tableAvailable

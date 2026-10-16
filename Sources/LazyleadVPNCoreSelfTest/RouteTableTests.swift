@@ -39,6 +39,7 @@ func runRoutingTests() throws {
     try expectEqual(ru?.displayDomain, ".ru", "installed domain rule")
     let rf = LimaDNSRule.parse("nameserver 127.0.0.1\nport 1054 # comment\n", filename: "xn--p1ai", routes: table, gateway: "192.168.64.2")
     try expectEqual(rf?.displayDomain, ".рф", "IDN display")
+    try expectEqual(LimaDNSRule.parse("nameserver 127.0.0.1\nport 1054", filename: "ru", routes: table, gateway: "192.168.64.3"), nil, "direct DNS must not be attributed to another VM")
     try expectEqual(LimaDNSRule.parse("nameserver 127.0.0.1\nport 53", filename: "ru", routes: table, gateway: "192.168.64.2"), nil, "unrelated loopback DNS excluded")
     try expectEqual(LimaDNSRule.parse("nameserver 127.0.0.1\nnameserver 8.8.8.8\nport 1054", filename: "ru", routes: table, gateway: "192.168.64.2"), nil, "mixed DNS cannot claim exclusive Lima routing")
     let corporate = LimaDNSRule.parse("nameserver 84.201.181.26", filename: "corp.example", routes: table, gateway: "192.168.64.2")

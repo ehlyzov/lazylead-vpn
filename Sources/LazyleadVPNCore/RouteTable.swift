@@ -117,7 +117,9 @@ public struct LimaDNSRule: Equatable {
             default: break
             }
         }
-        let local = servers.contains("127.0.0.1") && port == "1054"
+        // The installed direct-mode DNS helper has this fixed upstream VM.
+        // Do not attribute its rules to a different corporate gateway.
+        let local = gateway == "192.168.64.2" && servers.contains("127.0.0.1") && port == "1054"
         // Multiple resolvers may fall back to any configured server. Do not
         // describe a mixed direct/Lima resolver as exclusively using Lima.
         let throughVM = !servers.isEmpty && servers.allSatisfy {
