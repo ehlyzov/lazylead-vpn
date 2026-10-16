@@ -1,10 +1,10 @@
-# Установка и обновление
+# Installation and updates
 
-[К README](../README.md)
+[Back to README](../README.md) | [Русский](ru/installation.md)
 
-## Обновление настроенного Mac
+## Updating a configured Mac
 
-Если VM, DNS и маршруты уже настроены, для обновления приложения достаточно:
+If the VM, DNS, and routes are already configured, update the app with:
 
 ```bash
 git pull --ff-only
@@ -13,38 +13,39 @@ swift run LazyleadVPNCoreSelfTest
 ./scripts/install_app.sh
 ```
 
-Скрипт сохраняет предыдущую версию в `build/`, закрывает старое приложение,
-устанавливает новую версию в `/Applications` и запускает её. VM не перезапускается.
-Обновление приложения не переписывает настройки сети и очередь Transmission.
+The script backs up the previous app in `build/`, closes the old app, installs
+the new version in `/Applications`, and launches it. The VM is not restarted.
+Updating the app does not overwrite network settings or the Transmission queue.
 
-При обновлении с экспериментальной схемы Transmission на Mac обновите также
-системный помощник Yandex Cloud:
+When upgrading from the experimental native-Mac Transmission setup, also
+update the Yandex Cloud system helper:
 
 ```bash
 sudo ./scripts/install_direct_routes.sh
 ```
 
-Он использует уже собранный `build/direct-network/yandex-cloud-ipv4.txt`, удаляет
-только старые scoped `/1` маршруты и частный PF anchor Lazylead, восстанавливает
-локальный путь к VM при необходимости и проверяет доступ к Yandex API.
-Новая схема использует маршруты назначения и Transmission внутри Lima.
-Если снимка нет, сначала соберите его, как показано ниже.
+It uses the existing `build/direct-network/yandex-cloud-ipv4.txt`, removes only
+Lazylead's old scoped `/1` routes and private PF anchor, restores the local VM
+path if necessary, and checks access to the Yandex API. The current setup uses
+destination routes and Transmission inside Lima. If you do not have the
+snapshot, generate it first as described below.
 
-После изменения `scripts/domain_dns.py` обновите копию DNS-службы:
+After changing `scripts/domain_dns.py`, update the installed DNS service:
 
 ```bash
 ./scripts/prepare_dependencies.sh
 sudo ./scripts/install_gov_routes.sh
 ```
 
-Несмотря на историческое имя, этот установщик обслуживает все `.ru` и `.рф`.
+Despite its historical name, this installer handles all `.ru` and `.рф` domains.
 
-## Новый Mac: 1. Подготовка
+## New Mac: 1. Prerequisites
 
-Поддерживается Apple Silicon, macOS 14+, Ubuntu 24.04 ARM64 в Lima 2+.
-В инструкции используется имя VM `lazylead-vpn`. Если у вас уже есть VM с другим
-именем, например `existing-vpn`, используйте её имя во всех командах и настройках.
-Не создавайте вторую VM поверх существующей конфигурации.
+Supported setup: Apple Silicon, macOS 14+, and Ubuntu 24.04 ARM64 in Lima 2+.
+Install [Homebrew](https://brew.sh/) before running `brew install lima` below.
+This guide uses the VM name `lazylead-vpn`. If you already have a VM with a
+different name, such as `existing-vpn`, use that name in all commands and
+settings. Do not replace an existing VM configuration with a second setup.
 
 ```bash
 xcode-select --install
@@ -54,21 +55,22 @@ cd lazylead-vpn
 ./scripts/prepare_dependencies.sh
 ```
 
-`prepare_dependencies.sh` скачивает официальный socket_vmnet 1.2.2 и dnslib
-0.9.26, проверяет SHA-256 и сохраняет их в `build/`. Установка системных правил
-производится отдельными командами с `sudo`. Установщики не добавляют sudoers.
+`prepare_dependencies.sh` downloads the official socket_vmnet 1.2.2 release
+and dnslib 0.9.26, verifies SHA-256 checksums, and stores them in `build/`.
+System rules are installed by separate `sudo` commands. These installers do
+not add sudoers rules.
 
-## 2. Прямое сетевое подключение VM
+## 2. Direct VM network
 
-Проверьте, что физический интернет Mac использует `en0`:
+Check that the Mac's physical internet connection uses `en0`:
 
 ```bash
 networksetup -listallhardwareports
 ```
 
-Текущая реализация socket_vmnet привязана к `en0`. Если ваш физический интерфейс
-другой, сначала адаптируйте `scripts/install_direct_network.sh` и проверки,
-не запускайте команды вслепую.
+The current socket_vmnet implementation is bound to `en0`. If your physical
+interface is different, adapt `scripts/install_direct_network.sh` and the
+checks before running the setup commands.
 
 ```bash
 sudo ./scripts/install_direct_network.sh
@@ -77,24 +79,24 @@ limactl validate build/lima-direct.yaml
 limactl start --name=lazylead-vpn build/lima-direct.yaml
 ```
 
-Генератор создаёт отдельный YAML с `direct0`, `vzNAT`, writable virtiofs-монтажом
-вашего `~/Downloads`, локальным портом 9092 и provisioning-сценарием. Существующие
-VM он не изменяет. `vm_direct_network.sh` применяется при старте VM и исключает
-маршруты/DNS через хост из её интернет-пути.
+The generator creates a separate YAML file with `direct0`, `vzNAT`, a writable
+virtiofs mount of your `~/Downloads`, local port 9092, and a provisioning script.
+It does not modify existing VMs. `vm_direct_network.sh` runs when the VM starts
+and removes host-network routes/DNS from its internet path.
 
-Проверьте адреса:
+Check the addresses:
 
 ```bash
 limactl shell --workdir / lazylead-vpn ip -4 -brief address
 limactl shell --workdir / lazylead-vpn ip -4 route show default
 ```
 
-Ожидается единственный IPv4 default route через `direct0`, интерфейс `lima0`
-с адресом `192.168.64.2/24` и Mac с `192.168.64.1/24`. Эти два адреса фиксированы
-в текущей реализации. Если DHCP выдал другой адрес, остановитесь и согласуйте
-адреса в помощниках; не устанавливайте маршруты на неверный шлюз.
+Expect a single IPv4 default route through `direct0`, a `lima0` address of
+`192.168.64.2/24`, and `192.168.64.1/24` on the Mac. These two addresses are
+fixed in the current implementation. If DHCP assigned a different address,
+stop and align the helper addresses before installing routes.
 
-## 3. Маршрутизатор и DNS внутри VM
+## 3. Router and DNS inside the VM
 
 ```bash
 limactl shell --workdir / lazylead-vpn sudo apt-get update
@@ -108,33 +110,33 @@ limactl shell --workdir / lazylead-vpn sudo systemctl enable --now lazylead-dire
 limactl shell --workdir / lazylead-vpn sudo bash -s < scripts/vm_domain_dns.sh
 ```
 
-Маршрутизатор разрешает forwarding только от `192.168.64.1` через `lima0` к
-`direct0`, делает NAT и пропускает обратные пакеты установленных соединений.
-DNS слушает `192.168.64.2:1053` по TCP и UDP.
+The router allows forwarding only from `192.168.64.1` through `lima0` to
+`direct0`, applies NAT, and permits return packets for established connections.
+DNS listens at `192.168.64.2:1053` over TCP and UDP.
 
-## 4. Правила на Mac
+## 4. Mac routing rules
 
-Все `.ru`, `.рф` и их поддомены:
+All `.ru` and `.рф` domains and their subdomains:
 
 ```bash
 sudo ./scripts/install_gov_routes.sh
 ```
 
-Успешный результат: `VERIFIED: .ru and .рф domains and their subdomains use Lima (IPv4).`
+Successful output: `VERIFIED: .ru and .рф domains and their subdomains use Lima (IPv4).`
 
-Yandex Cloud, включая сервисы вне `.ru`:
+Yandex Cloud, including services outside `.ru`:
 
 ```bash
 python3 scripts/collect_yandex_cloud_routes.py --output build/direct-network
 sudo ./scripts/install_direct_routes.sh
 ```
 
-Сборщик читает официальные диапазоны, CDN и каталог API. По умолчанию HTTP
-запросы сборщика используют `en0`; `--interface ''` использует обычный маршрут
-Mac. Снимок не обновляется автоматически: периодически повторяйте обе команды.
-Установщик проверяет публичные IPv4-префиксы и доступ к API.
+The collector reads official ranges, CDN prefixes, and the API directory.
+Its HTTP requests use `en0` by default; `--interface ''` uses the Mac's normal
+route. The snapshot is not refreshed automatically: rerun both commands
+periodically. The installer verifies public IPv4 prefixes and API access.
 
-## 5. Transmission и файлы на Mac
+## 5. Transmission with files on the Mac
 
 ```bash
 GUEST_USER="$(limactl shell --workdir / lazylead-vpn id -un)"
@@ -142,19 +144,19 @@ limactl shell --workdir / lazylead-vpn sudo bash -s -- "$GUEST_USER" < scripts/v
 open http://127.0.0.1:9092/transmission/web/
 ```
 
-Файлы сохраняются в `~/Downloads`, незавершённые — в
-`~/Downloads/.transmission-incomplete`. Очередь нативного Transmission на Mac
-не импортируется автоматически. RPC доступен только на loopback гостя и Mac.
-Данные приложения находятся в `/var/lib/lazylead-transmission` внутри VM.
+Completed files are saved in `~/Downloads`; incomplete files are in
+`~/Downloads/.transmission-incomplete`. The native Mac Transmission queue is
+not imported automatically. RPC is available only on guest and Mac loopback.
+Application state is stored in `/var/lib/lazylead-transmission` inside the VM.
 
-## 6. Приложение
+## 6. The app
 
 ```bash
 ./scripts/build_app_bundle.sh
 ./scripts/install_app.sh
 ```
 
-Настройки приложения читаются из `/usr/local/etc/lazylead-vpn/env`:
+The app reads `/usr/local/etc/lazylead-vpn/env`:
 
 ```text
 LAZYLEAD_ROUTING_MODE=direct
@@ -162,17 +164,17 @@ LAZYLEAD_VM_NAME=lazylead-vpn
 LAZYLEAD_VM_GATEWAY=192.168.64.2
 ```
 
-Чтобы создать файл на новом Mac:
+Create this file on a new Mac with:
 
 ```bash
 sudo mkdir -p /usr/local/etc/lazylead-vpn
 sudo install -m 0644 examples/direct.env.example /usr/local/etc/lazylead-vpn/env
 ```
 
-При существующей настройке измените только необходимые строки, сохранив
-корпоративные параметры. Переменные окружения процесса имеют приоритет над файлом;
-`LAZYLEAD_VPN_CONFIG` позволяет выбрать другой путь. Перезапустите приложение
-после изменения режима или имени VM.
+For an existing installation, edit only the required lines and preserve any
+corporate settings. Process environment variables take precedence over the
+file. Set `LAZYLEAD_VPN_CONFIG` to use another path. Restart the app after
+changing the routing mode or VM name.
 
-Для `.pkg`: `./scripts/build_installer_pkg.sh`. Пакет из `dist/` устанавливает
-приложение, но не создаёт VM, не меняет маршруты и не настраивает Check Point.
+To build a `.pkg`, run `./scripts/build_installer_pkg.sh`. The package in `dist/`
+installs the app; it does not create a VM, change routes, or configure Check Point.

@@ -2,15 +2,16 @@
 
 ## 0.2.0 — 2026-10-16
 
-- Прямой выход Lima к провайдеру через socket_vmnet; основной VPN Mac сохраняет свой default route.
-- DNS-to-route для всех `.ru` и `.рф`, включая поддомены и IDN, с маршрутами до выдачи DNS-ответа.
-- Снимок опубликованных IPv4-сетей и API Yandex Cloud, проверка маршрутов и доступности API при установке.
-- Transmission внутри Lima, локальный Web UI и скачивание в `~/Downloads` на Mac.
-- Отдельные команды запуска/остановки Lima и явный выход из приложения.
-- Check Point/SAML сохранены как явно включаемый режим; автоматическая установка legacy sudoers из `.pkg` отключена.
-- Удаление устаревшей схемы native Transmission с scoped `/1` и частным PF anchor при обновлении сетевого помощника.
-- Генератор VM-конфигурации, установка приложения с резервной копией, версия и Git revision в bundle.
-- Документация по установке, эксплуатации, диагностике, архитектуре и Check Point; CI для Swift, DNS и host-route migration.
+- Direct Lima uplink through socket_vmnet; the Mac's primary VPN keeps its default route.
+- DNS-to-route for all `.ru` and `.рф` domains, including subdomains and IDNs, with routes installed before DNS answers are returned.
+- Published Yandex Cloud IPv4 range/API snapshots, route checks, and an API connectivity check during installation.
+- Transmission inside Lima, a local Web UI, and downloads saved to `~/Downloads` on the Mac.
+- Separate commands to start/stop Lima and an explicit app quit action.
+- Check Point/SAML preserved as an opt-in mode; automatic legacy sudoers installation removed from the `.pkg`.
+- Migration removes the obsolete native-Transmission scoped `/1` routes and private PF anchor when updating the network helper.
+- VM configuration generator, app installation with backup, and version/Git revision metadata in the bundle.
+- Installation, usage, troubleshooting, architecture, and Check Point guides; CI for Swift, DNS, and host-route migration.
 
-Ограничения: выбранные маршруты работают по IPv4, снимок Yandex Cloud обновляется вручную,
-приложения с собственным DoH требуют проверки. Корпоративный SAML/2FA end-to-end не проверялся.
+Limitations: selected routes use IPv4, the Yandex Cloud snapshot requires manual
+updates, and applications with their own DoH need separate verification.
+End-to-end corporate SAML/2FA login was not tested.

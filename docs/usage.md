@@ -1,57 +1,57 @@
-# Ежедневная работа
+# Daily use
 
-[К README](../README.md)
+[Back to README](../README.md) | [Русский](ru/usage.md)
 
-## Запуск и завершение
+## Starting and stopping
 
-Подключите основной VPN на Mac, если он нужен, затем откройте Lazylead VPN и
-выберите `Start Lima (Direct)`. Если VM уже работает, команда проверит её сеть.
-Состояние Connected означает, что проверка default route VM прошла; оно не
-заменяет отдельную проверку системных маршрутов или доступности каждого сайта.
+Connect the Mac's primary VPN if needed, open Lazylead VPN, and choose
+`Start Lima (Direct)`. If the VM is already running, the command checks its
+network. Connected means the VM's default-route check passed; it does not
+replace checks of system routes or the availability of individual sites.
 
-`Quit Lazylead VPN` закрывает только интерфейс приложения. `Stop Lima`
-останавливает VM, включая Transmission. Пока VM выключена, DNS-правила и
-выбранные маршруты остаются на Mac. Для возврата к обычной сети используйте
-[отключение правил](troubleshooting.md#отключение-правил).
+`Quit Lazylead VPN` closes only the app. `Stop Lima` shuts down the VM, including
+Transmission. DNS rules and selected routes remain on the Mac while the VM
+is stopped. To restore normal routing, [remove the rules](troubleshooting.md#removing-rules).
 
-После изменения правил перезапустите браузер, чтобы закрыть старые соединения
-и сбросить его DNS-кэш. На проверенном Mac Brave 1.96.60 с Secure DNS «текущий
-поставщик ОС» учитывал системное правило; отдельный DoH-провайдер может его обходить.
+After changing rules, restart the browser to close existing connections and
+clear its DNS cache. On the tested Mac, Brave 1.96.60 with Secure DNS set to the
+current OS provider respected the system rule. A custom DoH provider may bypass it.
 
 ## Transmission
 
-Откройте [Web UI](http://127.0.0.1:9092/transmission/web/) при работающей VM.
-Добавляйте торренты в Web UI; скачанные файлы появятся в `~/Downloads` на Mac.
-Очередь и настройки сохраняются внутри VM между её запусками. Не удаляйте VM,
-если хотите сохранить её состояние.
+Open the [Web UI](http://127.0.0.1:9092/transmission/web/) while the VM is running.
+Add torrents in the Web UI; completed files appear in `~/Downloads` on the Mac.
+The queue and settings persist inside the VM between starts. Do not delete the
+VM if you want to keep that state.
 
-Проверить службу, заменив имя VM своим:
+Check the service, replacing the VM name with yours:
 
 ```bash
 limactl shell --workdir / lazylead-vpn systemctl status lazylead-transmission.service
 ```
 
-## Автозапуск приложения
+## Launching the app at login
 
 ```bash
 ./scripts/install_launch_agent.sh '/Applications/Lazylead VPN.app'
 ```
 
-Это запускает интерфейс приложения после входа в macOS. Для запуска VM нажмите
-`Start Lima (Direct)` — этот LaunchAgent сам не выполняет Connect.
-Отключение автозапуска:
+This opens the app after login. Click `Start Lima (Direct)` to start the VM;
+the LaunchAgent does not invoke Connect automatically.
+
+Disable login startup:
 
 ```bash
 launchctl bootout "gui/$(id -u)/io.lazylead.vpn.autostart"
 launchctl disable "gui/$(id -u)/io.lazylead.vpn.autostart"
 ```
 
-## Обновление адресов Yandex Cloud
+## Updating Yandex Cloud addresses
 
 ```bash
 python3 scripts/collect_yandex_cloud_routes.py --output build/direct-network
 sudo ./scripts/install_direct_routes.sh
 ```
 
-DNS-служба для `.ru`/`.рф` изучает новые адреса по запросам автоматически.
-Для остальных зон Yandex Cloud используется отдельный снимок префиксов.
+The `.ru`/`.рф` DNS service learns new addresses as queries arrive. Yandex Cloud
+services in other zones use the separate prefix snapshot.

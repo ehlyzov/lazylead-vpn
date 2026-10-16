@@ -1,48 +1,50 @@
 # Lazylead VPN
 
-Приложение в строке меню macOS для управления сетевым шлюзом в Lima.
-Текущая версия — **0.2.0**. Основной режим: выбранный трафик идёт через
-виртуальную машину напрямую к провайдеру, а основной VPN на Mac продолжает работать.
-**Check Point сохранён как отдельный режим.**
+**English** | [Русский](README.ru.md)
 
-## Куда идёт трафик
+A macOS menu bar app for managing a Lima network gateway.
+Current version: **0.2.0**. In the default mode, selected traffic goes directly
+through the VM to your internet provider while the Mac's primary VPN stays in use.
+**Check Point remains available as a separate mode.**
 
-| Трафик | Путь в основном режиме |
+## Traffic routing
+
+| Traffic | Path in direct mode |
 | --- | --- |
-| Все домены `.ru`, `.рф` и их поддомены | Mac → Lima → провайдер |
-| `gov.ru`, `gosuslugi.ru`, `esia.gosuslugi.ru` | Входят в правило `.ru` |
-| Yandex Cloud: опубликованные IPv4-сети, API, консоль, Object Storage, CDN | Mac → Lima → провайдер, по установленному снимку адресов |
-| Transmission внутри Lima | Lima → провайдер; файлы сохраняются в `~/Downloads` на Mac |
-| Остальной трафик Mac | Обычный маршрут Mac, например Pepper VPN |
+| All `.ru` and `.рф` domains and their subdomains | Mac → Lima → internet provider |
+| `gov.ru`, `gosuslugi.ru`, `esia.gosuslugi.ru` | Covered by the `.ru` rule |
+| Yandex Cloud: published IPv4 ranges, API, console, Object Storage, CDN | Mac → Lima → internet provider, using the installed address snapshot |
+| Transmission inside Lima | Lima → internet provider; downloads are saved to `~/Downloads` on the Mac |
+| Other Mac traffic | The Mac's normal route, such as Pepper VPN |
 
-Приложение само не создаёт VPN-туннель и не настраивает Pepper. Маршруты и DNS
-устанавливаются отдельно системными помощниками. Для их работы Lima должна быть запущена.
-Маршрутизация выбранных сайтов реализована для **IPv4**.
+The app does not establish its own VPN tunnel or configure Pepper. Separate
+system helpers install routes and DNS rules. Lima must be running for these
+rules to work. Selected-site routing currently supports **IPv4**.
 
-## Начать работу
+## Getting started
 
-- **Новый Mac:** [пошаговая установка](docs/installation.md).
-- **Уже настроенный Mac:** [обновление приложения](docs/installation.md#обновление-настроенного-mac).
-- **Ежедневная работа, Transmission, автозапуск:** [использование](docs/usage.md).
-- **Не открывается сайт или пропал доступ к Lima:** [диагностика и отключение правил](docs/troubleshooting.md).
-- **Корпоративный VPN:** [режим Check Point](docs/checkpoint.md).
-- **Как устроена сеть и какие есть ограничения:** [архитектура](docs/architecture.md).
+- **New Mac:** [installation guide](docs/installation.md).
+- **Already configured:** [update the app](docs/installation.md#updating-a-configured-mac).
+- **Daily use, Transmission, login startup:** [usage guide](docs/usage.md).
+- **A site or the VM is unreachable:** [troubleshooting and removing rules](docs/troubleshooting.md).
+- **Corporate VPN:** [Check Point mode](docs/checkpoint.md).
+- **Network design and limitations:** [architecture](docs/architecture.md).
 
-В меню приложения:
+App menu:
 
-| Пункт | Действие |
+| Item | Action |
 | --- | --- |
-| `Start Lima (Direct)` | Запустить VM и проверить, что её единственный IPv4 default route использует `direct0` |
-| `Stop Lima` | Остановить VM; выбранные сайты и Transmission станут недоступны |
-| `Settings…` | Посмотреть версию, режим, VM, пути, журнал и таблицу маршрутов |
-| `Quit Lazylead VPN` / `⌘Q` | Закрыть приложение; VM и системные службы продолжают работать |
+| `Start Lima (Direct)` | Start the VM and verify that its only IPv4 default route uses `direct0` |
+| `Stop Lima` | Stop the VM; selected sites and Transmission become unavailable |
+| `Settings…` | View the version, mode, VM, paths, log, and routing table |
+| `Quit Lazylead VPN` / `⌘Q` | Quit the app; the VM and system services keep running |
 
 Transmission Web UI: [127.0.0.1:9092/transmission/web/](http://127.0.0.1:9092/transmission/web/).
 
-## Сборка и проверки
+## Building and checking
 
-Нужны Apple Silicon, macOS 14+, Xcode Command Line Tools и Lima 2+.
-Полный Xcode для приложения не требуется.
+Requires Apple Silicon, macOS 14+, Xcode Command Line Tools, and Lima 2+.
+Full Xcode is not required to build the app.
 
 ```bash
 ./scripts/prepare_dependencies.sh
@@ -53,12 +55,12 @@ python3 scripts/test_host_direct_routes.py
 ./scripts/install_app.sh
 ```
 
-Приложение: `build/Lazylead VPN.app`; установка: `/Applications/Lazylead VPN.app`.
-Версия хранится в [`VERSION`](VERSION), Git revision записывается в `Info.plist`.
-Для сборки установочного пакета: `./scripts/build_installer_pkg.sh`.
-Пакет устанавливает только приложение; VM и системные правила настраиваются по инструкции.
-Локальные сборки подписываются ad-hoc, но не имеют Developer ID/notarization.
+Build output: `build/Lazylead VPN.app`. Installed app: `/Applications/Lazylead VPN.app`.
+The version is stored in [`VERSION`](VERSION); the Git revision is recorded in
+`Info.plist`. To build an installer package, run `./scripts/build_installer_pkg.sh`.
+The package installs only the app; follow the guide to set up the VM and system rules.
+Local builds use ad-hoc signing and do not include Developer ID signing or notarization.
 
-Исходники Check Point и примеры конфигурации не содержат рабочих корпоративных
-адресов или учётных данных. Локальные конфиги, ключи, диагностические отчёты и
-артефакты сборки исключены из Git.
+Check Point sources and configuration examples use placeholders rather than
+working corporate addresses or credentials. Local configuration, keys,
+diagnostic reports, and build artifacts are excluded from Git.

@@ -1,58 +1,61 @@
-# Как устроена сеть
+# Network architecture
 
-[К README](../README.md)
+[Back to README](../README.md) | [Русский](ru/architecture.md)
 
-Mac сохраняет обычный default route, например через Pepper. У Lima два
-дополнительных сетевых интерфейса: `lima0` принимает пакеты Mac через VZ NAT,
-а `direct0` подключён через socket_vmnet к физическому `en0`. Единственный
-IPv4 default route и DNS внутри VM идут к провайдеру через `direct0`.
+The Mac keeps its normal default route, such as Pepper VPN. Lima has two
+additional network interfaces: `lima0` receives Mac traffic through VZ NAT,
+and `direct0` connects through socket_vmnet to the physical `en0` interface.
+The VM's only IPv4 default route and its DNS use `direct0` to reach the provider.
 
-## Компоненты
+## Components
 
-| Компонент | Где работает | Назначение |
+| Component | Runs on | Purpose |
 | --- | --- | --- |
-| Lazylead VPN.app | Mac, пользователь | Запуск/остановка VM и проверка её default route |
-| `io.lazylead.direct-network` | Mac, root | socket_vmnet, сокет `/private/var/run/lazylead-direct.sock` |
-| `lazylead-direct-router.service` | VM, root | Ограниченный IPv4 forwarding/NAT с `lima0` на `direct0` |
-| `io.lazylead.gov-dns` | Mac, root | DNS-to-route для `.ru` и `.рф`, TCP/UDP `127.0.0.1:1054` |
-| systemd-resolved | VM | DNS для Mac на `192.168.64.2:1053` |
-| `io.lazylead.direct-routes` | Mac, root | Установка и проверка снимка префиксов Yandex Cloud раз в минуту |
-| `lazylead-transmission.service` | VM, пользователь | Transmission с writable virtiofs `~/Downloads` |
+| Lazylead VPN.app | Mac, user | Start/stop the VM and check its default route |
+| `io.lazylead.direct-network` | Mac, root | socket_vmnet; socket at `/private/var/run/lazylead-direct.sock` |
+| `lazylead-direct-router.service` | VM, root | Restricted IPv4 forwarding/NAT from `lima0` to `direct0` |
+| `io.lazylead.gov-dns` | Mac, root | DNS-to-route for `.ru` and `.рф`; TCP/UDP `127.0.0.1:1054` |
+| systemd-resolved | VM | DNS for the Mac at `192.168.64.2:1053` |
+| `io.lazylead.direct-routes` | Mac, root | Install/check the Yandex Cloud prefix snapshot every minute |
+| `lazylead-transmission.service` | VM, user | Transmission with a writable virtiofs mount of `~/Downloads` |
 
-Имена `gov-dns` и `install_gov_routes.sh` исторические; сейчас они обслуживают
-все `.ru` и `.рф` (`xn--p1ai`).
+The names `gov-dns` and `install_gov_routes.sh` are historical: they now handle
+all `.ru` and `.рф` (`xn--p1ai`) domains.
 
 ## DNS-to-route
 
-`/etc/resolver/ru` и `/etc/resolver/xn--p1ai` выбирают локальную DNS-службу.
-Она запрашивает DNS через Lima, устанавливает IPv4-маршруты для полученных адресов
-и только затем отдаёт ответ приложению. Если маршрут установить не удалось,
-возвращается SERVFAIL. Учитываются CNAME и IPv4 hints в HTTPS/SVCB.
-AAAA и IPv6 hints исключаются, чтобы соединение не обошло IPv4-шлюз.
+`/etc/resolver/ru` and `/etc/resolver/xn--p1ai` select the local DNS service.
+It queries DNS through Lima, installs IPv4 routes for the returned addresses,
+and only then returns the answer to the application. If route installation
+fails, it returns SERVFAIL. CNAME records and HTTPS/SVCB IPv4 hints are included.
+AAAA records and IPv6 hints are excluded to prevent connections from bypassing
+the IPv4 gateway.
 
-Изученные маршруты сохраняются на DNS TTL плюс сутки и проверяются раз в 30 секунд.
-Состояние и владение маршрутами: `/var/db/lazylead-domain-dns/routes.json`.
-Служба не перезаписывает конфликтующие статические маршруты пользователя.
-Она может заменить автоматически созданный scoped host cache VPN.
+Learned routes are retained for their DNS TTL plus one day and checked every
+30 seconds. State and route ownership are stored in
+`/var/db/lazylead-domain-dns/routes.json`. The service does not overwrite
+conflicting user-defined static routes. It can replace automatically generated
+scoped VPN host-cache entries.
 
-## Ограничения
+## Limitations
 
-- Поддерживается IPv4. Полноценного IPv6 forwarding нет.
-- Приложения с собственным DNS/DoH могут обойти системный resolver.
-- Правило применяется по IP: другие домены на том же адресе тоже могут попасть в Lima.
-- Внешние ресурсы сайта, находящиеся вне выбранных зон/префиксов, следуют своим маршрутам.
-- Уже открытые соединения и собственные кэши браузеров не перенаправляются задним числом.
-- Снимок Yandex Cloud требует ручного обновления. Новые или изменившиеся адреса
-  вне снимка не гарантированы; старые префиксы на работающем Mac автоматически
-  не отзываются при замене снимка. Для полной очистки удалите правила и установите заново.
-- Нет kill switch: остановка VM не удаляет правила, а изменения сети не дают
-  гарантии отсутствия обхода через основной маршрут.
-- Адреса `192.168.64.1/2`, интерфейс `en0` и ARM64 — текущие ограничения установки.
-- RPC Transmission не требует пароля и доступен только на loopback. Это не
-  предназначено для публикации порта 9092 в локальную сеть или интернет.
+- IPv4 is supported; full IPv6 forwarding is not implemented.
+- Applications with their own DNS/DoH can bypass the system resolver.
+- Routing works by IP: other domains sharing an address may also use Lima.
+- External resources outside the selected domains/prefixes follow their own routes.
+- Existing connections and browser-owned DNS caches are not redirected retroactively.
+- The Yandex Cloud snapshot requires manual updates. New or changed addresses
+  outside the snapshot are not covered. Replacing the snapshot does not
+  automatically withdraw old prefixes on a running Mac; remove and reinstall
+  the rules for a full reset.
+- There is no kill switch: stopping the VM does not remove rules, and network
+  changes do not guarantee that traffic cannot use the normal Mac route.
+- The installation currently assumes `192.168.64.1/2`, `en0`, and ARM64.
+- Transmission RPC has no password and is accessible only on loopback. It is
+  not intended to expose port 9092 to the LAN or the internet.
 
 ## Check Point
 
-Корпоративный режим сохранён и включается явно. Он использует `snx-rs`,
-корпоративные маршруты/DNS и браузерную SAML/2FA. Прямой режим не запускает
-Check Point. Инструкция: [checkpoint.md](checkpoint.md).
+Corporate VPN mode is preserved and enabled explicitly. It uses `snx-rs`,
+corporate routes/DNS, and browser-based SAML/2FA. Direct mode does not start
+Check Point. See [the Check Point guide](checkpoint.md).

@@ -1,10 +1,10 @@
-# Диагностика и отключение правил
+# Troubleshooting and removing rules
 
-[К README](../README.md)
+[Back to README](../README.md) | [Русский](ru/troubleshooting.md)
 
-Во всех командах замените `lazylead-vpn` своим именем VM.
+Replace `lazylead-vpn` with your VM name in all commands.
 
-## Не открывается выбранный сайт
+## A selected site is unreachable
 
 ```bash
 limactl list
@@ -14,14 +14,14 @@ route -n get 192.168.64.2
 scutil --dns
 ```
 
-VM должна работать, default route гостя должен использовать только `direct0`,
-а `192.168.64.2` должен быть достижим напрямую через мост Mac. Маршрут к
-`192.168.64.2` через `192.168.64.2` означает ошибочный рекурсивный маршрут.
-При обновлении старой экспериментальной версии выполните
-`sudo ./scripts/install_direct_routes.sh`: новый помощник уберёт собственные
-старые scoped `/1` маршруты/PF-правило и при необходимости восстановит ARP-путь.
+The VM must be running, its default route must use only `direct0`, and
+`192.168.64.2` must be directly reachable through the Mac's bridge. A route to
+`192.168.64.2` through `192.168.64.2` is an invalid recursive route. When
+upgrading from an old experimental version, run
+`sudo ./scripts/install_direct_routes.sh`: the updated helper removes its own
+old scoped `/1` routes/PF rule and restores the ARP path if necessary.
 
-Проверить системный DNS и маршрут адресов, не подменяя resolver через `dig`:
+Check system DNS and address routes without bypassing the resolver with `dig`:
 
 ```bash
 python3 - <<'PY'
@@ -34,18 +34,18 @@ PY
 curl -4 --connect-timeout 5 --max-time 15 https://api.cloud.yandex.net/endpoints
 ```
 
-Для выбранных адресов ожидается `gateway: 192.168.64.2`. `dig` без явного
-сервера не является проверкой правил `/etc/resolver` macOS. Прямой тест службы:
-`dig @127.0.0.1 -p 1054 yandex.ru A`.
+Expect `gateway: 192.168.64.2` for selected addresses. `dig` without an explicit
+server does not test macOS `/etc/resolver` rules. To query the service directly,
+use `dig @127.0.0.1 -p 1054 yandex.ru A`.
 
-Журналы Mac:
+Mac logs:
 
-- `~/Library/Logs/Lazylead VPN/` — приложение;
+- `~/Library/Logs/Lazylead VPN/` — app;
 - `/var/log/lazylead-direct/gov-dns.stderr.log` — DNS-to-route;
-- `/var/log/lazylead-direct/routes.stderr.log` — маршруты Yandex Cloud;
+- `/var/log/lazylead-direct/routes.stderr.log` — Yandex Cloud routes;
 - `/var/log/lazylead-direct/stderr.log` — socket_vmnet.
 
-Внутри VM:
+Inside the VM:
 
 ```bash
 limactl shell --workdir / lazylead-vpn systemctl status lazylead-direct-router.service
@@ -53,13 +53,13 @@ limactl shell --workdir / lazylead-vpn resolvectl status direct0
 limactl shell --workdir / lazylead-vpn curl -4 --max-time 15 https://api.cloud.yandex.net/endpoints
 ```
 
-Если внутри VM сайт открывается, а с Mac нет, проверяйте путь Mac→VM и host routes.
-Если адреса поменялись, пересоберите снимок Yandex Cloud и установите его заново.
-Если работает Terminal, но не браузер, проверьте DoH и перезапустите браузер.
-Не повторяйте установщики вслепую при одной и той же ошибке: сохраните сообщение
-и проверьте соответствующий компонент.
+If the site works inside the VM but not from the Mac, check the Mac→VM path
+and host routes. If addresses have changed, regenerate and reinstall the
+Yandex Cloud snapshot. If Terminal works but the browser does not, check DoH
+and restart the browser. Do not keep rerunning installers after the same error;
+record the message and inspect the relevant component.
 
-## Transmission Web UI недоступен
+## Transmission Web UI is unavailable
 
 ```bash
 limactl shell --workdir / lazylead-vpn systemctl status lazylead-transmission.service
@@ -67,13 +67,13 @@ limactl shell --workdir / lazylead-vpn findmnt /mnt/mac-downloads
 curl --max-time 5 http://127.0.0.1:9092/transmission/web/
 ```
 
-Нужны запущенная VM, writable virtiofs-монтаж Downloads и port forward
-`127.0.0.1:9092 → guest 127.0.0.1:9091`. Изменение mounts требует перезапуска VM.
-Не запускайте вторую копию daemon поверх существующей очереди.
+You need a running VM, a writable virtiofs Downloads mount, and the port forward
+`127.0.0.1:9092 → guest 127.0.0.1:9091`. Changing mounts requires restarting the
+VM. Do not start a second daemon over an existing queue.
 
-## Отключение правил
+## Removing rules
 
-Пока VM работает, удалите сначала DNS-правила, затем префиксы Yandex Cloud:
+While the VM is running, remove DNS rules first, then Yandex Cloud prefixes:
 
 ```bash
 sudo ./scripts/install_gov_routes.sh remove
@@ -81,17 +81,16 @@ sudo ./scripts/install_direct_routes.sh remove
 limactl stop lazylead-vpn
 ```
 
-Удаляются только собственные resolver-файлы и учтённые маршруты. Если маршрут
-уже изменён другим приложением, помощники не должны удалять чужую запись.
-VM, очередь Transmission и скачанные файлы остаются. Приложение можно удалить
-из `/Applications` обычным способом.
+Only owned resolver files and recorded routes are removed. Helpers should not
+remove a route that another application has changed. The VM, Transmission
+queue, and downloaded files remain. Remove the app from `/Applications` as usual.
 
-Чтобы убрать также службу socket_vmnet после остановки VM:
+To remove the socket_vmnet service as well, after stopping the VM:
 
 ```bash
 sudo launchctl bootout system/io.lazylead.direct-network
 sudo rm /Library/LaunchDaemons/io.lazylead.direct-network.plist
 ```
 
-Откат приложения: закройте текущую версию и верните сохранённую
-`build/Lazylead VPN.before-<дата>.app` в `/Applications/Lazylead VPN.app`.
+To roll back the app, close the current version and restore the saved
+`build/Lazylead VPN.before-<timestamp>.app` to `/Applications/Lazylead VPN.app`.

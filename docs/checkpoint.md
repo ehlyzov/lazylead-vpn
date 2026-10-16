@@ -1,18 +1,18 @@
-# Режим Check Point
+# Check Point mode
 
-[К README](../README.md)
+[Back to README](../README.md) | [Русский](ru/checkpoint.md)
 
-Возможность работы с Check Point сохранена. Она включается явно; основной режим
-приложения — прямой шлюз к провайдеру через Lima.
+Check Point support is preserved and enabled explicitly. The app's default
+mode is a direct gateway to the internet provider through Lima.
 
-## Подготовка
+## Preparation
 
-Нужны Lima VM со `snx-rs`, рабочая конфигурация клиента внутри VM и
-корпоративные параметры вашей организации. Используйте отдельную VM для
-Check Point: provisioning прямого режима отключает `snx-rs.service` и убирает
-маршруты через сеть хоста.
+You need a Lima VM with `snx-rs`, a working client configuration inside that VM,
+and your organization's corporate network settings. Use a separate VM for
+Check Point: direct-mode provisioning disables `snx-rs.service` and removes
+routes through the host network.
 
-Для новой корпоративной VM есть нейтральный шаблон:
+A neutral template is included for a new corporate VM:
 
 ```bash
 limactl start --name=lazylead-checkpoint examples/lima-vm.yaml
@@ -22,21 +22,21 @@ limactl copy /path/to/snx-rs-package.deb lazylead-checkpoint:/tmp/snx-rs-package
 limactl shell --workdir / lazylead-checkpoint sudo apt-get install -y /tmp/snx-rs-package.deb
 ```
 
-Выберите пакет `snx-rs` для ARM64 и вашей версии Ubuntu. Создайте его конфигурацию
-в гостевой системе согласно требованиям организации, например
-`$HOME/.config/snx-rs/snx-rs.conf`. Пароли, сертификаты и реальный конфиг не должны
-попадать в этот репозиторий.
+Choose an `snx-rs` package for ARM64 and your Ubuntu version. Create its
+configuration inside the guest according to your organization's requirements,
+for example at `$HOME/.config/snx-rs/snx-rs.conf`. Keep passwords, certificates,
+and the real configuration out of this repository.
 
-Если другая VZ VM уже заняла `192.168.64.2`, корпоративной VM потребуется другой
-адрес. Укажите его в `LAZYLEAD_VM_GATEWAY`. Перед переключением при необходимости
-[отключите правила прямого режима](troubleshooting.md#отключение-правил), чтобы
-сохранённые маршруты не указывали на VM с другим назначением.
+If another VZ VM already uses `192.168.64.2`, the corporate VM needs a different
+address. Set it in `LAZYLEAD_VM_GATEWAY`. Before switching, [remove direct-mode
+rules](troubleshooting.md#removing-rules) if needed, so saved routes do not point
+to a VM serving a different purpose.
 
-## Настройки Mac
+## Mac configuration
 
-Файл `/usr/local/etc/lazylead-vpn/env` читается приложением и legacy-помощниками.
-Пример ниже содержит только публичные и документационные значения — замените их
-параметрами своей организации:
+The app and legacy helpers read `/usr/local/etc/lazylead-vpn/env`. The following
+example uses public and documentation-only values; replace them with your
+organization's settings:
 
 ```bash
 LAZYLEAD_ROUTING_MODE=checkpoint
@@ -55,23 +55,24 @@ VPN_DNS_SERVERS="10.0.0.53 10.0.0.54"
 VPN_ROUTE_PROBES="10.0.0.1 10.0.0.53"
 ```
 
-Перезапустите Lazylead VPN. В меню появятся `Connect` и `Disconnect`.
+Restart Lazylead VPN. The menu will show `Connect` and `Disconnect`.
 
-- `Connect` запускает VM, готовит bootstrap-маршруты, запускает `snx-rs`,
-  открывает браузер для SAML/2FA и после соединения устанавливает корпоративные маршруты/DNS.
-- `Disconnect` останавливает `snx-rs` и удаляет корпоративные host routes/DNS.
-  Bootstrap-маршруты остаются для следующего подключения.
-- `Settings…` показывает режим и позволяет повторно открыть последнюю 2FA-страницу.
-- `Quit` закрывает приложение; для отключения туннеля сначала используйте `Disconnect`.
+- `Connect` starts the VM, prepares bootstrap routes, starts `snx-rs`, opens
+  the SAML/2FA browser page, and installs corporate routes/DNS after connecting.
+- `Disconnect` stops `snx-rs` and removes corporate host routes/DNS. Bootstrap
+  routes remain installed for the next connection.
+- `Settings…` shows the mode and can reopen the latest 2FA page.
+- `Quit` closes the app; use `Disconnect` first to shut down the tunnel.
 
-Запросы администратора при смене маршрутов штатны. При необходимости можно
-явно установить узкие sudoers-правила через
-`sudo ./scripts/install_passwordless_sudo.sh`. Основной `.pkg` больше не включает
-их автоматически. Прямой режим в этих правилах не нуждается.
+Administrator prompts when changing routes are expected. If needed, explicitly
+install the restricted sudoers rules with
+`sudo ./scripts/install_passwordless_sudo.sh`. The main `.pkg` no longer installs
+them automatically. Direct mode does not need these rules.
 
-Для возврата к прямому режиму восстановите `LAZYLEAD_ROUTING_MODE=direct`, имя
-прямой VM и её адрес. Перезапустите приложение и установите нужные правила по
-[инструкции](installation.md).
+To return to direct mode, restore `LAZYLEAD_ROUTING_MODE=direct`, the direct VM's
+name, and its address. Restart the app and install the required rules using the
+[installation guide](installation.md).
 
-Корпоративное SAML/2FA-подключение в выпуске 0.2.0 не проверялось на рабочем
-Check Point gateway: сохранены код, параметры и сборочные проверки этого режима.
+End-to-end corporate SAML/2FA login against a working Check Point gateway was
+not tested for release 0.2.0. The mode's code, configuration options, and build
+checks have been preserved.
