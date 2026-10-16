@@ -130,6 +130,7 @@ final class InfoWindowController: NSWindowController {
         }
 
         addField("App Version", snapshot.appVersion)
+        addField("Network Mode", vpnController.usesDirectNetworking ? "Direct via provider (no Check Point)" : "Check Point")
         addField("limactl", "\(snapshot.limactlVersion) (\(snapshot.limactlPath))")
         addField("VM", "\(snapshot.vmName): \(snapshot.vmStatus)")
         addField("Lima Instance", snapshot.limaInstanceDirectory)

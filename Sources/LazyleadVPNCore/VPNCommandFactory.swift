@@ -42,6 +42,17 @@ public struct VPNCommandFactory {
         VPNCommand(executable: limactl, arguments: ["start", vmName])
     }
 
+    public func stopVMCommand() -> VPNCommand {
+        VPNCommand(executable: limactl, arguments: ["stop", vmName])
+    }
+
+    public func directNetworkProbeCommand() -> VPNCommand {
+        VPNCommand(executable: limactl, arguments: [
+            "shell", vmName, "--", "sh", "-c",
+            "ip -4 route show default | awk 'BEGIN { count=0; invalid=0 } { count++; found=0; for (i=1; i<NF; i++) if ($i==\"dev\" && $(i+1)==\"direct0\") found=1; if (!found) invalid=1 } END { exit (count==0 || invalid) }'"
+        ])
+    }
+
     public func copyRouterCommand() -> VPNCommand {
         VPNCommand(
             executable: limactl,

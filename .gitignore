@@ -30,3 +30,7 @@ docs/superpowers/
 .env
 .env.*
 lazylead-vpn.env
+
+# Python bytecode from local DNS checks.
+__pycache__/
+*.py[cod]

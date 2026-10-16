@@ -63,6 +63,23 @@ func run() throws {
         "https://vpn.example.com/clients/"
     ], "gateway probe command")
 
+    // A lower-priority host/VPN default route must not become a silent fallback.
+    let directProbe = commands.directNetworkProbeCommand().arguments.last!
+    for (routes, expectedStatus) in [
+        ("default via 192.168.1.1 dev direct0 metric 50", Int32(0)),
+        ("default via 192.168.1.1 dev direct0 metric 50\ndefault via 192.168.5.2 dev eth0 metric 200", Int32(1)),
+        ("default via 192.168.1.1 dev direct01", Int32(1)),
+        ("", Int32(1))
+    ] {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/sh")
+        process.arguments = ["-c", "ip() { printf '%s' \"$TEST_ROUTES\"; }; " + directProbe]
+        process.environment = ["PATH": "/usr/bin:/bin", "TEST_ROUTES": routes]
+        try process.run()
+        process.waitUntilExit()
+        try expectEqual(process.terminationStatus, expectedStatus, "direct route validation: \(routes)")
+    }
+
     try expectEqual(VPNState.connected.menuTitle, "Lazylead VPN: Connected", "connected state label")
     try expectEqual(VPNState.disconnected.usesActiveIcon, false, "disconnected inactive icon")
     try expectEqual(VPNState.waitingFor2FA.usesActiveIcon, true, "waiting active icon")

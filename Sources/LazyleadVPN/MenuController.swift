@@ -11,6 +11,7 @@ final class MenuController: NSObject {
     private let connectMenuItem = NSMenuItem(title: "Connect", action: #selector(connect), keyEquivalent: "")
     private let disconnectMenuItem = NSMenuItem(title: "Disconnect", action: #selector(disconnect), keyEquivalent: "")
     private let settingsMenuItem = NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ",")
+    private let quitMenuItem = NSMenuItem(title: "Quit Lazylead VPN", action: #selector(quitApp), keyEquivalent: "q")
 
     init(vpnController: VPNController, logStore: LogStore) {
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -38,13 +39,21 @@ final class MenuController: NSObject {
     }
 
     private func configureMenu() {
+        menu.autoenablesItems = false
+        if vpnController.usesDirectNetworking {
+            connectMenuItem.title = "Start Lima (Direct)"
+            disconnectMenuItem.title = "Stop Lima"
+        }
         connectMenuItem.target = self
         disconnectMenuItem.target = self
         settingsMenuItem.target = self
+        quitMenuItem.target = self
 
         menu.addItem(connectMenuItem)
         menu.addItem(disconnectMenuItem)
         menu.addItem(settingsMenuItem)
+        menu.addItem(.separator())
+        menu.addItem(quitMenuItem)
     }
 
     @objc private func connect() {
@@ -53,6 +62,10 @@ final class MenuController: NSObject {
 
     @objc private func disconnect() {
         vpnController.disconnect()
+    }
+
+    @objc private func quitApp() {
+        NSApplication.shared.terminate(nil)
     }
 
     @objc private func openSettings() {

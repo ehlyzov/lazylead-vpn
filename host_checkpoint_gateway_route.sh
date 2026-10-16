@@ -55,7 +55,46 @@ physical_default_gateway() {
 
 resolve_host_ips() {
   local host="$1"
-  dig @1.1.1.1 +short "$host" A | awk '/^[0-9.]+$/ {print}'
+  local dns
+
+  {
+    for dns in "${PUBLIC_DNS_SERVERS[@]}"; do
+      dig @"$dns" +time=2 +tries=1 +short "$host" A 2>/dev/null \
+        | awk '/^[0-9.]+$/ {print}' || true
+    done
+
+    dig +time=2 +tries=1 +short "$host" A 2>/dev/null \
+      | awk '/^[0-9.]+$/ {print}' || true
+  } | sort -u
+}
+
+route_host_via_gateway() {
+  local ip="$1"
+
+  route -n delete -host "$ip" >/dev/null 2>&1 || true
+  route -n add -host "$ip" "$gateway"
+}
+
+install_dns_server_routes() {
+  local dns
+
+  for dns in "${PUBLIC_DNS_SERVERS[@]}"; do
+    [[ "$dns" =~ ^[0-9.]+$ ]] || continue
+    [[ "$dns" == "$gateway" ]] && continue
+    route_host_via_gateway "$dns"
+  done
+}
+
+remove_dns_server_routes() {
+  local dns
+
+  for dns in "${PUBLIC_DNS_SERVERS[@]}"; do
+    [[ "$dns" =~ ^[0-9.]+$ ]] || continue
+    [[ "$dns" == "$gateway" ]] && continue
+    route -n delete -host "$dns" "$gateway" 2>/dev/null \
+      || route -n delete -host "$dns" 2>/dev/null \
+      || true
+  done
 }
 
 install_bootstrap_resolvers() {
@@ -125,6 +164,7 @@ case "$mode" in
       echo "Run install with sudo." >&2
       exit 1
     fi
+    install_dns_server_routes
     for host in "${BOOTSTRAP_HOSTS[@]}"; do
       ips="$(resolve_host_ips "$host")"
       if [[ -z "$ips" ]]; then
@@ -133,8 +173,7 @@ case "$mode" in
       fi
       while IFS= read -r ip; do
         [[ -z "$ip" ]] && continue
-        route -n delete -host "$ip" >/dev/null 2>&1 || true
-        route -n add -host "$ip" "$gateway"
+        route_host_via_gateway "$ip"
       done <<< "$ips"
     done
     install_bootstrap_resolvers
@@ -145,6 +184,7 @@ case "$mode" in
       echo "Run remove with sudo." >&2
       exit 1
     fi
+    install_dns_server_routes
     for host in "${BOOTSTRAP_HOSTS[@]}"; do
       ips="$(resolve_host_ips "$host")"
       while IFS= read -r ip; do
@@ -154,6 +194,7 @@ case "$mode" in
           || true
       done <<< "$ips"
     done
+    remove_dns_server_routes
     remove_bootstrap_resolvers
     status
     ;;

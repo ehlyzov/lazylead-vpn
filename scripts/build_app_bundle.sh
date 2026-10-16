@@ -2,6 +2,11 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+VERSION="${VERSION:-$(cat "${ROOT_DIR}/VERSION")}"
+BUILD_REVISION="$(git -C "$ROOT_DIR" rev-parse --short=12 HEAD)"
+if ! git -C "$ROOT_DIR" diff --quiet HEAD --; then
+  BUILD_REVISION="${BUILD_REVISION}-dirty"
+fi
 APP_DIR="${ROOT_DIR}/build/Lazylead VPN.app"
 CONTENTS_DIR="${APP_DIR}/Contents"
 MACOS_DIR="${CONTENTS_DIR}/MacOS"
@@ -25,7 +30,7 @@ chmod +x "${SCRIPTS_DIR}/host_checkpoint_gateway_route.sh"
 chmod +x "${SCRIPTS_DIR}/host_corporate_routes.sh"
 chmod +x "${SCRIPTS_DIR}/vm_corporate_router.sh"
 
-cat > "${CONTENTS_DIR}/Info.plist" <<'PLIST'
+cat > "${CONTENTS_DIR}/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -43,9 +48,11 @@ cat > "${CONTENTS_DIR}/Info.plist" <<'PLIST'
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>0.1.0</string>
+    <string>${VERSION}</string>
     <key>CFBundleVersion</key>
-    <string>1</string>
+    <string>${VERSION}</string>
+    <key>LazyleadBuildRevision</key>
+    <string>${BUILD_REVISION}</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
     <key>LSUIElement</key>
@@ -56,5 +63,7 @@ cat > "${CONTENTS_DIR}/Info.plist" <<'PLIST'
 </plist>
 PLIST
 
+codesign --force --sign - --timestamp=none "${APP_DIR}"
+codesign --verify --strict "${APP_DIR}"
 touch "${APP_DIR}"
 echo "${APP_DIR}"

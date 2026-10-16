@@ -1,206 +1,64 @@
 # Lazylead VPN
 
-Lazylead VPN is a small macOS menu bar app for running a Check Point `snx-rs`
-VPN client inside a lightweight Lima Linux VM while keeping the macOS host
-usable with another VPN client.
+Приложение в строке меню macOS для управления сетевым шлюзом в Lima.
+Текущая версия — **0.2.0**. Основной режим: выбранный трафик идёт через
+виртуальную машину напрямую к провайдеру, а основной VPN на Mac продолжает работать.
+**Check Point сохранён как отдельный режим.**
 
-The app starts the Lima VM, launches `snx-rs`, opens the Check Point SAML/2FA
-URL in the default browser, and applies macOS routes/DNS so corporate services
-can be opened from the normal browser, `git`, `kubectl`, `k9s`, and other host
-tools.
+## Куда идёт трафик
 
-## What It Does
+| Трафик | Путь в основном режиме |
+| --- | --- |
+| Все домены `.ru`, `.рф` и их поддомены | Mac → Lima → провайдер |
+| `gov.ru`, `gosuslugi.ru`, `esia.gosuslugi.ru` | Входят в правило `.ru` |
+| Yandex Cloud: опубликованные IPv4-сети, API, консоль, Object Storage, CDN | Mac → Lima → провайдер, по установленному снимку адресов |
+| Transmission внутри Lima | Lima → провайдер; файлы сохраняются в `~/Downloads` на Mac |
+| Остальной трафик Mac | Обычный маршрут Mac, например Pepper VPN |
 
-- Runs the Check Point Linux client inside a Lima VM.
-- Keeps Check Point gateway/SSO hosts reachable through the physical network
-  even when another macOS VPN changes the default route.
-- Routes corporate networks from macOS into the Lima VM after the Check Point
-  tunnel is connected.
-- Adds scoped `/etc/resolver` entries for corporate DNS zones.
-- Provides a native menu bar UI with Connect, Disconnect, and Settings.
-- Can install restricted `sudoers` rules so route updates do not ask for an
-  admin password on every connect.
+Приложение само не создаёт VPN-туннель и не настраивает Pepper. Маршруты и DNS
+устанавливаются отдельно системными помощниками. Для их работы Lima должна быть запущена.
+Маршрутизация выбранных сайтов реализована для **IPv4**.
 
-## Requirements
+## Начать работу
 
-- macOS on Apple Silicon.
-- Xcode command line tools for building from source.
-- Homebrew, if you want the installer bootstrap to install Lima automatically.
-- Lima.
-- A prepared Lima instance named `lazylead-vpn`.
-- `snx-rs` installed inside that VM.
-- Check Point `snx-rs` config at:
+- **Новый Mac:** [пошаговая установка](docs/installation.md).
+- **Уже настроенный Mac:** [обновление приложения](docs/installation.md#обновление-настроенного-mac).
+- **Ежедневная работа, Transmission, автозапуск:** [использование](docs/usage.md).
+- **Не открывается сайт или пропал доступ к Lima:** [диагностика и отключение правил](docs/troubleshooting.md).
+- **Корпоративный VPN:** [режим Check Point](docs/checkpoint.md).
+- **Как устроена сеть и какие есть ограничения:** [архитектура](docs/architecture.md).
 
-```text
-$HOME/.config/snx-rs/snx-rs.conf
-```
+В меню приложения:
 
-inside the Lima VM user account.
+| Пункт | Действие |
+| --- | --- |
+| `Start Lima (Direct)` | Запустить VM и проверить, что её единственный IPv4 default route использует `direct0` |
+| `Stop Lima` | Остановить VM; выбранные сайты и Transmission станут недоступны |
+| `Settings…` | Посмотреть версию, режим, VM, пути, журнал и таблицу маршрутов |
+| `Quit Lazylead VPN` / `⌘Q` | Закрыть приложение; VM и системные службы продолжают работать |
 
-## Configuration
+Transmission Web UI: [127.0.0.1:9092/transmission/web/](http://127.0.0.1:9092/transmission/web/).
 
-The public repository uses placeholder hosts, routes, and DNS values. Put the
-real organization-specific values in a local env file and keep that file out of
-git.
+## Сборка и проверки
 
-Default config path:
-
-```text
-/usr/local/etc/lazylead-vpn/env
-```
-
-Supported variables:
+Нужны Apple Silicon, macOS 14+, Xcode Command Line Tools и Lima 2+.
+Полный Xcode для приложения не требуется.
 
 ```bash
-VPN_BOOTSTRAP_HOSTS="vpn.example.com sso.example.com"
-VPN_PUBLIC_DNS_SERVERS="1.1.1.1 9.9.9.9"
-VPN_CORPORATE_ROUTES="10.0.0.0 255.0.0.0 10.0.0.1;172.16.0.0 255.240.0.0 172.16.0.1"
-VPN_DNS_DOMAINS="corp.example.com internal.example.com"
-VPN_DNS_SERVERS="10.0.0.53 10.0.0.54"
-VPN_ROUTE_PROBES="10.0.0.1 10.0.0.53"
-```
-
-The app itself can also be configured via environment variables:
-
-```bash
-LAZYLEAD_VM_NAME="lazylead-vpn"
-LAZYLEAD_VM_GATEWAY="192.168.64.2"
-LAZYLEAD_SNX_CONFIG_PATH='$HOME/.config/snx-rs/snx-rs.conf'
-LAZYLEAD_GATEWAY_PROBE_URL="https://vpn.example.com/clients/"
-LAZYLEAD_BOOTSTRAP_PROBE_IP="203.0.113.10"
-LAZYLEAD_CORPORATE_PROBE_IP="10.0.0.1"
-LAZYLEAD_SAML_BROWSER_APP="Safari"
-LAZYLEAD_VPN_CONFIG="/usr/local/etc/lazylead-vpn/env"
-```
-
-The IP addresses shown above are placeholders, not secrets:
-
-- `10.0.0.0/8` examples are private RFC1918 ranges.
-- `192.168.64.2` is the usual Lima VZ NAT guest address on macOS.
-- `203.0.113.10` is from RFC5737 TEST-NET-3 documentation space.
-- `1.1.1.1` and `9.9.9.9` are public recursive DNS resolvers.
-
-## Lima VM Setup
-
-The app expects a Lima VM that can run the Linux Check Point client and expose
-its tunnel back to the macOS host.
-
-Create a VM from the included neutral template:
-
-```bash
-limactl start --name=lazylead-vpn ./examples/lima-vm.yaml
-```
-
-Install base tools inside the VM:
-
-```bash
-limactl shell lazylead-vpn -- sudo apt-get update
-limactl shell lazylead-vpn -- sudo apt-get install -y curl ca-certificates iproute2 iptables dnsutils
-```
-
-Install `snx-rs` inside the VM using the package that matches your environment
-and your organization's Check Point gateway. Keep downloaded VPN packages and
-generated config files outside this repository.
-
-One generic package-install flow looks like this:
-
-```bash
-limactl copy /path/to/snx-rs-package.deb lazylead-vpn:/tmp/snx-rs-package.deb
-limactl shell lazylead-vpn -- sudo apt-get install -y /tmp/snx-rs-package.deb
-```
-
-Create the `snx-rs` config inside the VM according to your organization's
-Check Point setup:
-
-```bash
-limactl shell lazylead-vpn -- mkdir -p ~/.config/snx-rs
-limactl shell lazylead-vpn
-$EDITOR ~/.config/snx-rs/snx-rs.conf
-```
-
-Then update the local app config on macOS:
-
-```bash
-sudo mkdir -p /usr/local/etc/lazylead-vpn
-sudo install -m 0644 /path/to/local-lazylead-vpn.env /usr/local/etc/lazylead-vpn/env
-```
-
-## Build
-
-```bash
+./scripts/prepare_dependencies.sh
 swift run LazyleadVPNCoreSelfTest
+PYTHONPATH=build/domain-routing/vendor python3 scripts/test_domain_dns.py
+python3 scripts/test_host_direct_routes.py
 ./scripts/build_app_bundle.sh
+./scripts/install_app.sh
 ```
 
-The app bundle is written to:
+Приложение: `build/Lazylead VPN.app`; установка: `/Applications/Lazylead VPN.app`.
+Версия хранится в [`VERSION`](VERSION), Git revision записывается в `Info.plist`.
+Для сборки установочного пакета: `./scripts/build_installer_pkg.sh`.
+Пакет устанавливает только приложение; VM и системные правила настраиваются по инструкции.
+Локальные сборки подписываются ad-hoc, но не имеют Developer ID/notarization.
 
-```text
-build/Lazylead VPN.app
-```
-
-## Run
-
-```bash
-open "build/Lazylead VPN.app"
-```
-
-Use the menu bar icon:
-
-- `Connect` starts the VM, prepares routes, starts `snx-rs`, and opens the 2FA
-  page.
-- `Disconnect` stops `snx-rs` and removes corporate host routes/DNS.
-- `Settings` shows Lima status, app paths, sudoers status, logs, and the
-  current IPv4 routing table.
-
-## Installer Package
-
-```bash
-./scripts/build_installer_pkg.sh
-```
-
-The unsigned installer package is written to:
-
-```text
-dist/LazyleadVPN-0.1.0-arm64.pkg
-```
-
-The package installs the app into `/Applications`, copies privileged route
-scripts into `/usr/local/libexec/lazylead-vpn`, and installs a narrow
-`/etc/sudoers.d/lazylead-vpn` rule for the route commands used by the app.
-
-If Lima is missing and Homebrew is available, the postinstall script attempts
-to install Lima. It does not create or configure the Lima VM and does not
-install the Check Point client.
-
-## Autostart
-
-For a locally built app:
-
-```bash
-./scripts/install_launch_agent.sh
-```
-
-Or pass an explicit app path:
-
-```bash
-./scripts/install_launch_agent.sh "/Applications/Lazylead VPN.app"
-```
-
-## Security Notes
-
-This repository should not contain credentials, VPN client config files,
-private keys, session URLs, or diagnostic reports. The `.gitignore` excludes
-build artifacts, local VPN probe reports, logs, installer packages, VPN config
-files, certificates, and downloaded `.deb` packages.
-
-The app logs state transitions and sanitized events. It should not log
-passwords, MFA codes, cookies, or SAML assertions.
-
-Before publishing changes, run:
-
-```bash
-rg -n --hidden -S -i "(password|token|secret|api[_-]?key|private[ _-]?key|authorization|bearer|cookie|session)" \
-  --glob '!.git/**' --glob '!.build/**' --glob '!build/**' --glob '!dist/**' --glob '!vpn-probe-reports/**'
-```
-
-Review any matches manually before pushing.
+Исходники Check Point и примеры конфигурации не содержат рабочих корпоративных
+адресов или учётных данных. Локальные конфиги, ключи, диагностические отчёты и
+артефакты сборки исключены из Git.

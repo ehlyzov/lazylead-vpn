@@ -1,0 +1,12 @@
+[Unit]
+Description=Forward selected Mac traffic through the Lima direct uplink
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/lazylead-direct-router
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

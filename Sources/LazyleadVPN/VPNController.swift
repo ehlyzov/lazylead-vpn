@@ -20,6 +20,7 @@ final class VPNController {
     let bootstrapProbeIP: String
     let corporateProbeIP: String
     let samlBrowserApp: String?
+    let usesDirectNetworking: Bool
     var onStateChange: ((VPNState) -> Void)?
     var onSAMLURLChange: (() -> Void)?
     private(set) var lastSAMLURL: URL?
@@ -52,6 +53,7 @@ final class VPNController {
         self.bootstrapProbeIP = resolvedBootstrapProbeIP
         self.corporateProbeIP = resolvedCorporateProbeIP
         self.samlBrowserApp = resolvedSAMLBrowserApp
+        self.usesDirectNetworking = environment["LAZYLEAD_ROUTING_MODE"] != "checkpoint"
         self.commands = VPNCommandFactory(
             projectDirectory: resolvedProjectDirectory,
             vmName: resolvedVMName,
@@ -100,6 +102,11 @@ final class VPNController {
             do {
                 try self.ensureLimactlExists()
                 try self.runFinite(self.commands.startVMCommand())
+                if self.usesDirectNetworking {
+                    try self.verifyDirectNetwork()
+                    self.setState(.connected)
+                    return
+                }
                 self.setState(.preparing)
                 try self.runFinite(self.commands.copyRouterCommand())
                 try self.runFinite(self.commands.chmodRouterCommand())
@@ -122,6 +129,15 @@ final class VPNController {
             guard self.state.canDisconnect || self.snxProcess != nil else { return }
 
             self.setState(.disconnecting)
+            if self.usesDirectNetworking {
+                do {
+                    try self.runFinite(self.commands.stopVMCommand())
+                    self.setState(.disconnected)
+                } catch {
+                    self.setState(.error(error.localizedDescription))
+                }
+                return
+            }
             self.snxProcess?.terminate()
             self.snxProcess = nil
 
@@ -273,6 +289,16 @@ final class VPNController {
     }
 
     private func repairRoutesIfNeeded() {
+        if usesDirectNetworking {
+            if state == .connected {
+                do {
+                    try verifyDirectNetwork()
+                } catch {
+                    setState(.error(error.localizedDescription))
+                }
+            }
+            return
+        }
         if !bootstrapRoutesLookHealthy() {
             logStore.append("Repairing Check Point bootstrap routes after health check")
             _ = try? adminRunner.run(
@@ -286,6 +312,17 @@ final class VPNController {
             _ = try? adminRunner.run(
                 commands.installCorporateRoutesAdminCommand(),
                 fallbackShellCommand: commands.installCorporateRoutesScript()
+            )
+        }
+    }
+
+    private func verifyDirectNetwork() throws {
+        let result = try commandRunner.output(commands.directNetworkProbeCommand())
+        guard result.status == 0 else {
+            throw NSError(
+                domain: "LazyleadVPN.DirectNetwork",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "Lima must use direct0 as its only IPv4 default route. Configure the direct network before starting it from the app."]
             )
         }
     }
