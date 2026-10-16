@@ -84,6 +84,7 @@ func run() throws {
     try expectEqual(VPNState.disconnected.usesActiveIcon, false, "disconnected inactive icon")
     try expectEqual(VPNState.waitingFor2FA.usesActiveIcon, true, "waiting active icon")
     try expectEqual(VPNState.connected.usesActiveIcon, true, "connected active icon")
+    try runRoutingTests()
 }
 
 do {

@@ -7,10 +7,12 @@ final class MenuController: NSObject {
     private let vpnController: VPNController
     private let logStore: LogStore
     private var infoWindowController: InfoWindowController?
+    private var routesWindowController: RoutesWindowController?
 
     private let connectMenuItem = NSMenuItem(title: "Connect", action: #selector(connect), keyEquivalent: "")
     private let disconnectMenuItem = NSMenuItem(title: "Disconnect", action: #selector(disconnect), keyEquivalent: "")
     private let settingsMenuItem = NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ",")
+    private let routesMenuItem = NSMenuItem(title: "Traffic & Routes…", action: #selector(openRoutes), keyEquivalent: "")
     private let quitMenuItem = NSMenuItem(title: "Quit Lazylead VPN", action: #selector(quitApp), keyEquivalent: "q")
 
     init(vpnController: VPNController, logStore: LogStore) {
@@ -47,10 +49,12 @@ final class MenuController: NSObject {
         connectMenuItem.target = self
         disconnectMenuItem.target = self
         settingsMenuItem.target = self
+        routesMenuItem.target = self
         quitMenuItem.target = self
 
         menu.addItem(connectMenuItem)
         menu.addItem(disconnectMenuItem)
+        menu.addItem(routesMenuItem)
         menu.addItem(settingsMenuItem)
         menu.addItem(.separator())
         menu.addItem(quitMenuItem)
@@ -73,9 +77,20 @@ final class MenuController: NSObject {
             infoWindowController = InfoWindowController(
                 infoProvider: InfoProvider(vpnController: vpnController, logStore: logStore),
                 vpnController: vpnController,
-                logStore: logStore
+                logStore: logStore,
+                showRoutes: { [weak self] in self?.openRoutes() }
             )
         }
         infoWindowController?.show()
+    }
+
+    @objc func openRoutes() {
+        if routesWindowController == nil {
+            routesWindowController = RoutesWindowController(
+                vmName: vpnController.vmName, gateway: vpnController.vmGateway,
+                direct: vpnController.usesDirectNetworking
+            )
+        }
+        routesWindowController?.show()
     }
 }

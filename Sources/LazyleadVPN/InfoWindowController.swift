@@ -4,14 +4,16 @@ final class InfoWindowController: NSWindowController {
     private let infoProvider: InfoProvider
     private let vpnController: VPNController
     private let logStore: LogStore
+    private let showRoutes: () -> Void
     private let fieldsStack = NSStackView()
     private let routingTextView = NSTextView()
     private let open2FAButton = NSButton(title: "Open 2FA Page", target: nil, action: nil)
 
-    init(infoProvider: InfoProvider, vpnController: VPNController, logStore: LogStore) {
+    init(infoProvider: InfoProvider, vpnController: VPNController, logStore: LogStore, showRoutes: @escaping () -> Void = {}) {
         self.infoProvider = infoProvider
         self.vpnController = vpnController
         self.logStore = logStore
+        self.showRoutes = showRoutes
 
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 860, height: 680),
@@ -92,7 +94,10 @@ final class InfoWindowController: NSWindowController {
 
         let routingLabel = NSTextField(labelWithString: "Routing Table")
         routingLabel.font = .systemFont(ofSize: 14, weight: .semibold)
-        root.addArrangedSubview(routingLabel)
+        let routingHeader = NSStackView(views: [routingLabel, NSView(),
+            NSButton(title: "Traffic & Routes…", target: self, action: #selector(openRoutes))])
+        root.addArrangedSubview(routingHeader)
+        routingHeader.widthAnchor.constraint(equalTo: root.widthAnchor).isActive = true
 
         routingTextView.isEditable = false
         routingTextView.isSelectable = true
@@ -173,6 +178,8 @@ final class InfoWindowController: NSWindowController {
     @objc private func refreshAction() {
         refresh()
     }
+
+    @objc private func openRoutes() { showRoutes() }
 
     @objc private func open2FAPage() {
         vpnController.openLastSAMLURL()

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0 — 2026-10-16
+
+- Added a native `Traffic & Routes…` window in the menu bar and Settings.
+- Shows installed domain rules, Yandex Cloud snapshot counts, guest Transmission status, and the Mac's default interface.
+- Lists exact installed IPv4 routes through the configured Lima gateway, with CIDR-aware IP search, scope labels, copy, and background refresh.
+- Separates configuration from VM availability and does not claim to monitor live traffic.
+- Opens the routing overview on first launch; `--show-routes` opens it explicitly.
+
 ## 0.2.0 — 2026-10-16
 
 - Direct Lima uplink through socket_vmnet; the Mac's primary VPN keeps its default route.

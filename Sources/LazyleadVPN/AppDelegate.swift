@@ -29,5 +29,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.vpnController = vpnController
         self.menuController = menuController
         menuController.render(state: vpnController.state)
+        if CommandLine.arguments.contains("--show-routes") || !UserDefaults.standard.bool(forKey: "hasShownRoutingOverview") {
+            menuController.openRoutes()
+            UserDefaults.standard.set(true, forKey: "hasShownRoutingOverview")
+        }
     }
 }

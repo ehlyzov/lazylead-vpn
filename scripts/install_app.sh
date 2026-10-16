@@ -39,5 +39,5 @@ if ! mv "$staging/Lazylead VPN.app" "$destination"; then
   [[ ! -d "$staging/previous.app" ]] || mv "$staging/previous.app" "$destination"
   exit 1
 fi
-open "$destination"
+open "$destination" --args "$@"
 echo "Installed: $destination"
