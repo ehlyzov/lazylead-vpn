@@ -21,14 +21,14 @@ if [[ -d "$destination" ]]; then
   echo "Previous version: $backup"
 fi
 # Only terminate this user's installed menu-bar process. The VM keeps running.
-running="$(pgrep -u "$(id -u)" -f '^/Applications/Lazylead VPN[.]app/Contents/MacOS/LazyleadVPN$' || true)"
+running="$(pgrep -u "$(id -u)" -f '^/Applications/Lazylead VPN[.]app/Contents/MacOS/LazyleadVPN( |$)' || true)"
 if [[ -n "$running" ]]; then
   kill -TERM $running
   for attempt in {1..30}; do
-    pgrep -u "$(id -u)" -f '^/Applications/Lazylead VPN[.]app/Contents/MacOS/LazyleadVPN$' >/dev/null || break
+    pgrep -u "$(id -u)" -f '^/Applications/Lazylead VPN[.]app/Contents/MacOS/LazyleadVPN( |$)' >/dev/null || break
     sleep 0.1
   done
-  if pgrep -u "$(id -u)" -f '^/Applications/Lazylead VPN[.]app/Contents/MacOS/LazyleadVPN$' >/dev/null; then
+  if pgrep -u "$(id -u)" -f '^/Applications/Lazylead VPN[.]app/Contents/MacOS/LazyleadVPN( |$)' >/dev/null; then
     echo 'The app did not quit. Installation was not changed.' >&2; exit 1
   fi
 fi
