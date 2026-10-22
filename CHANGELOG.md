@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Route `codenrock.com` and all its subdomains through the Lima DNS-to-route service.
 - Route `tbank-online.com` and all its subdomains through the Lima DNS-to-route service.
 
 ## 0.3.0 — 2026-10-16

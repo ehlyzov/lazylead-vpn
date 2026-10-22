@@ -19,12 +19,14 @@ class DomainTests(unittest.TestCase):
                      'gosuslugi.ru', 'GOSUSLUGI.RU.', 'esia.gosuslugi.ru', 'one.two.gosuslugi.ru',
                      'example.ru', 'notgov.ru', 'notgosuslugi.ru', 'one.two.ru',
                      'пример.рф', 'ПРИМЕР.РФ.', 'one.xn--p1ai', 'one.two.xn--p1ai',
-                     'tbank-online.com', 'TBANK-ONLINE.COM.', 'one.two.tbank-online.com'):
+                     'tbank-online.com', 'TBANK-ONLINE.COM.', 'one.two.tbank-online.com',
+                     'codenrock.com', 'CODENROCK.COM.', 'one.two.codenrock.com'):
             self.assertTrue(in_zone(name))
         for name in ('example.com', 'gov.ru.example.org', 'gosuslugi.ru.example.org',
                      'example.notru', 'example.ru.com', 'example.notxn--p1ai',
                      'one.xn--p1ai.com', 'пример.рф.com', 'nottbank-online.com',
-                     'tbank-online.com.example.org', 'tbank-online.net'):
+                     'tbank-online.com.example.org', 'tbank-online.net',
+                     'notcodenrock.com', 'codenrock.com.example.org', 'codenrock.net'):
             self.assertFalse(in_zone(name))
             question = DNSRecord.question(name)
             resolver, _ = self.resolver(question.reply())
@@ -41,9 +43,9 @@ class DomainTests(unittest.TestCase):
         routes.ensure.assert_called_once_with({'95.173.128.90'}, retention=86460)
 
     def test_routes_exist_before_address_is_returned(self):
-        question = DNSRecord.question('tbank-online.com')
+        question = DNSRecord.question('codenrock.com')
         answer = question.reply()
-        answer.add_answer(RR('tbank-online.com', QTYPE.A, ttl=172800, rdata=A('95.173.128.90')))
+        answer.add_answer(RR('codenrock.com', QTYPE.A, ttl=172800, rdata=A('95.173.128.90')))
         resolver, routes = self.resolver(answer)
         result = resolver.resolve(question, None)
         self.assertEqual(result.header.rcode, RCODE.NOERROR)
