@@ -3,7 +3,7 @@
 **English** | [Русский](README.ru.md)
 
 A macOS menu bar app for managing a Lima network gateway.
-Current version: **0.3.0**. In the default mode, selected traffic goes directly
+Current version: **0.4.0**. In the default mode, selected traffic goes directly
 through the VM to your internet provider while the Mac's primary VPN stays in use.
 **Check Point remains available as a separate mode.**
 
@@ -38,7 +38,7 @@ App menu:
 | --- | --- |
 | `Start Lima (Direct)` | Start the VM and verify that its only IPv4 default route uses `direct0` |
 | `Stop Lima` | Stop the VM; selected sites and Transmission become unavailable |
-| `Traffic & Routes…` | See configured domains, Yandex Cloud ranges, guest Transmission status, and exact installed IPv4 routes with search/copy |
+| `Traffic & Routes…` | Track Lima traffic totals and live speeds; see configured domains, Yandex Cloud ranges, Transmission status, and searchable IPv4 routes |
 | `Settings…` | View the version, mode, VM, paths, log, and routing table |
 | `Quit Lazylead VPN` / `⌘Q` | Quit the app; the VM and system services keep running |
 

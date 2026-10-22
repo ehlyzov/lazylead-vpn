@@ -6,6 +6,7 @@ final class MenuController: NSObject {
     private let menu: NSMenu
     private let vpnController: VPNController
     private let logStore: LogStore
+    private let trafficMonitor: TrafficMonitor
     private var infoWindowController: InfoWindowController?
     private var routesWindowController: RoutesWindowController?
 
@@ -20,9 +21,12 @@ final class MenuController: NSObject {
         self.menu = NSMenu(title: "Lazylead VPN")
         self.vpnController = vpnController
         self.logStore = logStore
+        self.trafficMonitor = TrafficMonitor(vmName: vpnController.vmName, gateway: vpnController.vmGateway,
+                                             direct: vpnController.usesDirectNetworking)
 
         super.init()
 
+        trafficMonitor.onChange = { [weak self] value in self?.routesWindowController?.renderTraffic(value) }
         configureStatusItem()
         configureMenu()
     }
@@ -88,7 +92,7 @@ final class MenuController: NSObject {
         if routesWindowController == nil {
             routesWindowController = RoutesWindowController(
                 vmName: vpnController.vmName, gateway: vpnController.vmGateway,
-                direct: vpnController.usesDirectNetworking
+                direct: vpnController.usesDirectNetworking, trafficMonitor: trafficMonitor
             )
         }
         routesWindowController?.show()

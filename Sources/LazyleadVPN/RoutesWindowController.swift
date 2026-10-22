@@ -3,6 +3,10 @@ import LazyleadVPNCore
 
 final class RoutesWindowController: NSWindowController, NSTableViewDataSource, NSTableViewDelegate, NSSearchFieldDelegate {
     private let provider: RoutingInfoProvider
+    private let trafficMonitor: TrafficMonitor
+    private let internetTraffic = NSTextField(wrappingLabelWithString: "Reading…")
+    private let macLinkTraffic = NSTextField(wrappingLabelWithString: "Reading…")
+    private let trafficPeriod = NSTextField(wrappingLabelWithString: "")
     private let subtitle = NSTextField(wrappingLabelWithString: "Reading installed routing rules…")
     private let status = NSTextField(wrappingLabelWithString: "")
     private let domains = NSTextField(wrappingLabelWithString: "Loading…")
@@ -19,12 +23,13 @@ final class RoutesWindowController: NSWindowController, NSTableViewDataSource, N
     private var visibleRoutes: [SystemRoute] = []
     private var refreshing = false
 
-    init(vmName: String, gateway: String, direct: Bool) {
+    init(vmName: String, gateway: String, direct: Bool, trafficMonitor: TrafficMonitor) {
+        self.trafficMonitor = trafficMonitor
         provider = RoutingInfoProvider(vmName: vmName, gateway: gateway, direct: direct)
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 760),
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 960, height: 940),
                               styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "Traffic through Lima"
-        window.minSize = NSSize(width: 780, height: 700)
+        window.minSize = NSSize(width: 850, height: 880)
         super.init(window: window)
         buildContent()
     }
@@ -35,6 +40,7 @@ final class RoutesWindowController: NSWindowController, NSTableViewDataSource, N
         showWindow(nil)
         window?.center()
         NSApp.activate(ignoringOtherApps: true)
+        renderTraffic(trafficMonitor.state)
         refresh()
     }
 
@@ -60,6 +66,8 @@ final class RoutesWindowController: NSWindowController, NSTableViewDataSource, N
         root.addArrangedSubview(subtitle)
         status.font = .systemFont(ofSize: 13, weight: .medium)
         root.addArrangedSubview(status)
+
+        addTrafficBox(to: root)
 
         let box = NSBox()
         box.boxType = .custom
@@ -152,13 +160,75 @@ final class RoutesWindowController: NSWindowController, NSTableViewDataSource, N
         root.addArrangedSubview(footer)
         footer.widthAnchor.constraint(equalTo: root.widthAnchor).isActive = true
         let note = NSTextField(wrappingLabelWithString:
-            "IPv4 configuration, not a live traffic monitor. More-specific routes can override prefixes; shared IPs and custom DNS can affect the actual path.")
+            "The table shows IPv4 configuration. More-specific routes, shared IPs and custom DNS can affect the actual path.")
         note.font = .systemFont(ofSize: 11)
         note.textColor = .secondaryLabelColor
         root.addArrangedSubview(note)
         for view in [subtitle, status, note] {
             view.widthAnchor.constraint(equalTo: root.widthAnchor).isActive = true
         }
+    }
+
+    private func addTrafficBox(to root: NSStackView) {
+        let box = NSBox()
+        box.title = "Measured traffic"
+        box.boxType = .primary
+        box.contentViewMargins = NSSize(width: 12, height: 10)
+        let stack = NSStackView()
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 8
+        for (title, field) in [("Lima uplink", internetTraffic), ("Mac ↔ Lima link", macLinkTraffic)] {
+            let row = NSStackView()
+            row.alignment = .top
+            row.spacing = 12
+            let label = NSTextField(labelWithString: title)
+            label.font = .systemFont(ofSize: 12, weight: .semibold)
+            label.widthAnchor.constraint(equalToConstant: 118).isActive = true
+            field.font = .monospacedDigitSystemFont(ofSize: 12, weight: .regular)
+            field.isSelectable = true
+            field.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+            row.addArrangedSubview(label)
+            row.addArrangedSubview(field)
+            stack.addArrangedSubview(row)
+            row.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
+        }
+        trafficPeriod.font = .systemFont(ofSize: 11)
+        trafficPeriod.textColor = .secondaryLabelColor
+        stack.addArrangedSubview(trafficPeriod)
+        let note = NSTextField(wrappingLabelWithString:
+            "The uplink includes Transmission, VM apps, forwarded traffic and local network traffic. The Mac link overlaps that total and includes local DNS; do not add the rows. These are interface bytes, not Pepper VPN usage or a provider's billing counter.")
+        note.font = .systemFont(ofSize: 11)
+        note.textColor = .secondaryLabelColor
+        stack.addArrangedSubview(note)
+        for field in [trafficPeriod, note] { field.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true }
+        box.contentView = stack
+        root.addArrangedSubview(box)
+        box.widthAnchor.constraint(equalTo: root.widthAnchor).isActive = true
+    }
+
+    func renderTraffic(_ value: TrafficViewState) {
+        func bytes(_ value: UInt64) -> String {
+            value == 0 ? "0 B" : ByteCountFormatter.string(fromByteCount: Int64(clamping: value), countStyle: .binary)
+        }
+        func rate(_ value: Double) -> String { bytes(UInt64(max(0, value))) + "/s" }
+        func row(_ total: TrafficBytes, _ speed: TrafficRate?, _ interface: String) -> String {
+            let current = speed.map { "↓ \(rate($0.received))   ↑ \(rate($0.sent))" } ?? "—"
+            return "↓ \(bytes(total.received)) received   ↑ \(bytes(total.sent)) sent · \(interface)\nCurrent: \(current)"
+        }
+        guard let ledger = value.ledger else {
+            internetTraffic.stringValue = "—"
+            macLinkTraffic.stringValue = "—"
+            trafficPeriod.stringValue = value.message
+            return
+        }
+        internetTraffic.stringValue = row(ledger.uplink, value.available ? value.update?.uplinkRate : nil, ledger.last.uplink.interface)
+        macLinkTraffic.stringValue = row(ledger.macLink, value.available ? value.update?.macLinkRate : nil, ledger.last.macLink.interface)
+        let start = DateFormatter.localizedString(from: ledger.started, dateStyle: .medium, timeStyle: .short)
+        let last = DateFormatter.localizedString(from: ledger.last.date, dateStyle: .none, timeStyle: .medium)
+        let gap = ledger.discontinuities > 0 ? " Interface restarts detected; traffic before a restart between samples may be missing." : ""
+        trafficPeriod.stringValue = "Counted since \(start) · Last sample \(last). \(value.message)\(gap)"
+        trafficPeriod.textColor = value.available ? .secondaryLabelColor : .systemOrange
     }
 
     @objc private func refresh() {

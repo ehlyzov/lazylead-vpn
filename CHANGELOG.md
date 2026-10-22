@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 — 2026-10-23
+
+- Added persistent received/sent traffic totals and live speeds for the Lima uplink and Mac-facing link in Direct mode.
+- Collection runs while the menu-bar app is open, even with the routes window closed; history is separated by VM, gateway and mode.
+- Detects guest/interface restarts, retains totals during outages, and marks possible gaps without treating unavailable counters as zero speed.
+- Documents overlapping counters, measurement periods and the difference from Pepper VPN/provider billing.
 
 - Route `codenrock.com` and all its subdomains through the Lima DNS-to-route service.
 - Route `tbank-online.com` and all its subdomains through the Lima DNS-to-route service.
