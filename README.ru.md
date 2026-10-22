@@ -13,6 +13,7 @@
 | --- | --- |
 | Все домены `.ru`, `.рф` и их поддомены | Mac → Lima → провайдер |
 | `gov.ru`, `gosuslugi.ru`, `esia.gosuslugi.ru` | Входят в правило `.ru` |
+| `tbank-online.com` и его поддомены | Mac → Lima → провайдер |
 | Yandex Cloud: опубликованные IPv4-сети, API, консоль, Object Storage, CDN | Mac → Lima → провайдер, по установленному снимку адресов |
 | Transmission внутри Lima | Lima → провайдер; файлы сохраняются в `~/Downloads` на Mac |
 | Остальной трафик Mac | Обычный маршрут Mac, например Pepper VPN |

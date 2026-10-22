@@ -37,7 +37,8 @@ sudo ./scripts/install_direct_routes.sh
 sudo ./scripts/install_gov_routes.sh
 ```
 
-Несмотря на историческое имя, этот установщик обслуживает все `.ru` и `.рф`.
+Несмотря на историческое имя, этот установщик обслуживает все `.ru` и `.рф`,
+а также `tbank-online.com` с поддоменами.
 
 ## Новый Mac: 1. Подготовка
 
@@ -115,13 +116,13 @@ DNS слушает `192.168.64.2:1053` по TCP и UDP.
 
 ## 4. Правила на Mac
 
-Все `.ru`, `.рф` и их поддомены:
+Все `.ru`, `.рф`, `tbank-online.com` и их поддомены:
 
 ```bash
 sudo ./scripts/install_gov_routes.sh
 ```
 
-Успешный результат: `VERIFIED: .ru and .рф domains and their subdomains use Lima (IPv4).`
+Успешный результат: `VERIFIED: .ru, .рф and tbank-online.com with their subdomains use Lima (IPv4).`
 
 Yandex Cloud, включая сервисы вне `.ru`:
 

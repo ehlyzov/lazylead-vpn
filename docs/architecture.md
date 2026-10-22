@@ -14,17 +14,18 @@ The VM's only IPv4 default route and its DNS use `direct0` to reach the provider
 | Lazylead VPN.app | Mac, user | Start/stop the VM and check its default route |
 | `io.lazylead.direct-network` | Mac, root | socket_vmnet; socket at `/private/var/run/lazylead-direct.sock` |
 | `lazylead-direct-router.service` | VM, root | Restricted IPv4 forwarding/NAT from `lima0` to `direct0` |
-| `io.lazylead.gov-dns` | Mac, root | DNS-to-route for `.ru` and `.рф`; TCP/UDP `127.0.0.1:1054` |
+| `io.lazylead.gov-dns` | Mac, root | DNS-to-route for `.ru`, `.рф`, and `tbank-online.com`; TCP/UDP `127.0.0.1:1054` |
 | systemd-resolved | VM | DNS for the Mac at `192.168.64.2:1053` |
 | `io.lazylead.direct-routes` | Mac, root | Install/check the Yandex Cloud prefix snapshot every minute |
 | `lazylead-transmission.service` | VM, user | Transmission with a writable virtiofs mount of `~/Downloads` |
 
 The names `gov-dns` and `install_gov_routes.sh` are historical: they now handle
-all `.ru` and `.рф` (`xn--p1ai`) domains.
+all `.ru` and `.рф` (`xn--p1ai`) domains, plus `tbank-online.com` and its subdomains.
 
 ## DNS-to-route
 
-`/etc/resolver/ru` and `/etc/resolver/xn--p1ai` select the local DNS service.
+`/etc/resolver/ru`, `/etc/resolver/xn--p1ai`, and `/etc/resolver/tbank-online.com`
+select the local DNS service.
 It queries DNS through Lima, installs IPv4 routes for the returned addresses,
 and only then returns the answer to the application. If route installation
 fails, it returns SERVFAIL. CNAME records and HTTPS/SVCB IPv4 hints are included.

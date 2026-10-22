@@ -37,7 +37,8 @@ After changing `scripts/domain_dns.py`, update the installed DNS service:
 sudo ./scripts/install_gov_routes.sh
 ```
 
-Despite its historical name, this installer handles all `.ru` and `.рф` domains.
+Despite its historical name, this installer handles all `.ru` and `.рф` domains, plus
+`tbank-online.com` and its subdomains.
 
 ## New Mac: 1. Prerequisites
 
@@ -116,13 +117,13 @@ DNS listens at `192.168.64.2:1053` over TCP and UDP.
 
 ## 4. Mac routing rules
 
-All `.ru` and `.рф` domains and their subdomains:
+All `.ru` and `.рф` domains, plus `tbank-online.com`, including their subdomains:
 
 ```bash
 sudo ./scripts/install_gov_routes.sh
 ```
 
-Successful output: `VERIFIED: .ru and .рф domains and their subdomains use Lima (IPv4).`
+Successful output: `VERIFIED: .ru, .рф and tbank-online.com with their subdomains use Lima (IPv4).`
 
 Yandex Cloud, including services outside `.ru`:
 
