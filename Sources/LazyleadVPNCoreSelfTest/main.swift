@@ -84,6 +84,21 @@ func run() throws {
     try expectEqual(VPNState.disconnected.usesActiveIcon, false, "disconnected inactive icon")
     try expectEqual(VPNState.waitingFor2FA.usesActiveIcon, true, "waiting active icon")
     try expectEqual(VPNState.connected.usesActiveIcon, true, "connected active icon")
+    try expectEqual(commands.vmStatusCommand().arguments, ["list", "--format", "{{.Status}}", "lazylead-vpn"], "VM status selects configured instance")
+    try expectEqual(VPNState.disconnected.synchronizedDirectState(vmStatus: "Running\n", networkHealthy: true), .connected,
+                    "Adopt an existing healthy VM on app launch")
+    try expectEqual(VPNState.connected.synchronizedDirectState(vmStatus: "Stopped", networkHealthy: false), .disconnected,
+                    "Notice an external VM stop")
+    try expectEqual(VPNState.error("previous error").synchronizedDirectState(vmStatus: "Running", networkHealthy: true), .connected,
+                    "Recover automatically after an external VM restart")
+    for status in ["Running", "Broken", "", nil] {
+        try expectEqual(VPNState.connected.synchronizedDirectState(vmStatus: status, networkHealthy: false).usesActiveIcon,
+                        false, "Do not claim an unavailable/invalid uplink is connected")
+    }
+    for pending in [VPNState.startingVM, .preparing, .waitingFor2FA, .configuring, .disconnecting] {
+        try expectEqual(pending.synchronizedDirectState(vmStatus: "Running", networkHealthy: true), pending,
+                        "Preserve in-progress operation")
+    }
     try runRoutingTests()
     try runTrafficAccountingTests()
 }

@@ -8,6 +8,8 @@ Connect the Mac's primary VPN if needed, open Lazylead VPN, and choose
 `Start Lima (Direct)`. If the VM is already running, the command checks its
 network. Connected means the VM's default-route check passed; it does not
 replace checks of system routes or the availability of individual sites.
+The Direct-mode icon also checks an already running VM when the app launches
+and updates for external starts/stops approximately every ten seconds.
 
 `Quit Lazylead VPN` closes only the app. `Stop Lima` shuts down the VM, including
 Transmission. DNS rules and selected routes remain on the Mac while the VM
@@ -78,6 +80,11 @@ or administrator password is needed for these counters.
 
 Open the [Web UI](http://127.0.0.1:9092/transmission/web/) while the VM is running.
 Add torrents in the Web UI; completed files appear in `~/Downloads` on the Mac.
+Incomplete downloads use `~/Downloads/.transmission-incomplete` on the Mac
+(`/mnt/mac-downloads/.transmission-incomplete` inside Lima). The hidden directory
+is on the Mac, not on the VM system disk. Queue/settings live separately in
+`/var/lib/lazylead-transmission` inside Lima.
+
 The queue and settings persist inside the VM between starts. Do not delete the
 VM if you want to keep that state.
 

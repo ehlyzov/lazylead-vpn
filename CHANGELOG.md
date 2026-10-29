@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Synchronize the Direct-mode icon with an already running VM on app launch and external starts/stops, using a bounded local network check.
+
 - Repair owned DNS host routes that macOS rebinds to the wrong interface after Lima restarts; refuse new routes while the VM gateway has no local bridge.
 
 ## 0.4.0 — 2026-10-23

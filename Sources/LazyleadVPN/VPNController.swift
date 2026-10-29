@@ -278,9 +278,14 @@ final class VPNController {
         state = newState
     }
 
+    func refreshDirectState() {
+        guard usesDirectNetworking else { return }
+        queue.async { [weak self] in self?.repairRoutesIfNeeded() }
+    }
+
     private func startHealthTimer() {
         let timer = DispatchSource.makeTimerSource(queue: queue)
-        timer.schedule(deadline: .now() + 10, repeating: 30)
+        timer.schedule(deadline: .now() + 10, repeating: usesDirectNetworking ? 10 : 30)
         timer.setEventHandler { [weak self] in
             self?.repairRoutesIfNeeded()
         }
@@ -290,13 +295,14 @@ final class VPNController {
 
     private func repairRoutesIfNeeded() {
         if usesDirectNetworking {
-            if state == .connected {
-                do {
-                    try verifyDirectNetwork()
-                } catch {
-                    setState(.error(error.localizedDescription))
-                }
+            let result = try? commandRunner.output(commands.vmStatusCommand(), timeout: 4)
+            let vmStatus = result?.status == 0 ? result?.text : nil
+            var healthy = false
+            if vmStatus?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "running" {
+                healthy = (try? verifyDirectNetwork()) != nil
             }
+            let observed = state.synchronizedDirectState(vmStatus: vmStatus, networkHealthy: healthy)
+            if observed != state { setState(observed) }
             return
         }
         if !bootstrapRoutesLookHealthy() {
@@ -317,7 +323,7 @@ final class VPNController {
     }
 
     private func verifyDirectNetwork() throws {
-        let result = try commandRunner.output(commands.directNetworkProbeCommand())
+        let result = try commandRunner.output(commands.directNetworkProbeCommand(), timeout: 4)
         guard result.status == 0 else {
             throw NSError(
                 domain: "LazyleadVPN.DirectNetwork",

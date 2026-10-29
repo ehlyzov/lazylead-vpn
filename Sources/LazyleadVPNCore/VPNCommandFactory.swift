@@ -46,6 +46,10 @@ public struct VPNCommandFactory {
         VPNCommand(executable: limactl, arguments: ["stop", vmName])
     }
 
+    public func vmStatusCommand() -> VPNCommand {
+        VPNCommand(executable: limactl, arguments: ["list", "--format", "{{.Status}}", vmName])
+    }
+
     public func directNetworkProbeCommand() -> VPNCommand {
         VPNCommand(executable: limactl, arguments: [
             "shell", vmName, "--", "sh", "-c",

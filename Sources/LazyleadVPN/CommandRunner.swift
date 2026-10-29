@@ -9,7 +9,7 @@ final class CommandRunner {
     }
 
     @discardableResult
-    func run(_ command: VPNCommand, output: @escaping (String) -> Void = { _ in }) throws -> Int32 {
+    func run(_ command: VPNCommand, timeout: TimeInterval? = nil, output: @escaping (String) -> Void = { _ in }) throws -> Int32 {
         let process = makeProcess(command)
         let pipe = Pipe()
         process.standardOutput = pipe
@@ -17,6 +17,13 @@ final class CommandRunner {
 
         logStore.append("RUN \(display(command))")
         try process.run()
+
+        let watchdog = timeout.map { seconds -> DispatchWorkItem in
+            let item = DispatchWorkItem { if process.isRunning { process.terminate() } }
+            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + seconds, execute: item)
+            return item
+        }
+        defer { watchdog?.cancel() }
 
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
         if let text = String(data: data, encoding: .utf8), !text.isEmpty {
@@ -29,9 +36,9 @@ final class CommandRunner {
         return process.terminationStatus
     }
 
-    func output(_ command: VPNCommand) throws -> (status: Int32, text: String) {
+    func output(_ command: VPNCommand, timeout: TimeInterval? = nil) throws -> (status: Int32, text: String) {
         var captured = ""
-        let status = try run(command) { text in
+        let status = try run(command, timeout: timeout) { text in
             captured += text
         }
         return (status, captured)
