@@ -59,6 +59,21 @@ Yandex Cloud snapshot. If Terminal works but the browser does not, check DoH
 and restart the browser. Do not keep rerunning installers after the same error;
 record the message and inspect the relevant component.
 
+## Sites fail after restarting or rebuilding Lima
+
+Compare `route -n get 192.168.64.2` with `route -n get <site IPv4>`.
+Both should use the current Lima bridge. macOS can preserve a host route's
+Lima gateway while rebinding it to `en0` when the bridge disappears.
+The DNS helper repairs its own exact host routes when their interface differs
+from the gateway's current bridge. It leaves unowned routes and covering prefixes
+unchanged and refuses to create routes when the gateway has no local bridge.
+
+Update the DNS helper once after pulling the fix:
+
+```bash
+sudo ./scripts/install_gov_routes.sh
+```
+
 ## Transmission Web UI is unavailable
 
 ```bash

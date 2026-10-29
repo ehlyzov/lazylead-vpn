@@ -57,9 +57,22 @@ class Routes:
     def install(self, address):
         if self.dry_run:
             return False
+        gateway_route = self.lookup(GATEWAY)
+        bridge = gateway_route.get('interface', '')
+        if not re.fullmatch(r'bridge\d+', bridge) or 'GATEWAY' in gateway_route.get('flags', ''):
+            raise RuntimeError('Lima gateway is not on a local bridge')
         route = self.lookup(address)
-        if route.get('gateway') == GATEWAY:
+        if route.get('gateway') == GATEWAY and route.get('interface') == bridge:
             return False
+        if route.get('gateway') == GATEWAY:
+            # macOS can retain our gateway while rebinding a static host route
+            # to en0 when the VM bridge disappears. Repair only an owned host
+            # route, never another administrator's route or a covering prefix.
+            owned = self.entries.get(address, {}).get('owned', False)
+            flags = route.get('flags', '')
+            if not (owned and 'HOST' in flags and 'STATIC' in flags and route.get('destination') == address):
+                raise RuntimeError('Refusing to replace an unowned or covering Lima route')
+            self.command('delete', '-host', address, GATEWAY)
         # Discard only a kernel-generated VPN host cache entry, never a user's
         # static route. A fresh unscoped host route takes precedence afterward.
         flags = route.get('flags', '')
@@ -67,7 +80,8 @@ class Routes:
         if 'WASCLONED' in flags and 'HOST' in flags and 'IFSCOPE' in flags and re.fullmatch(r'utun\d+', interface):
             self.command('delete', '-host', '-ifscope', interface, address)
         result = self.command('add', '-host', address, GATEWAY)
-        if self.lookup(address).get('gateway') != GATEWAY:
+        installed = self.lookup(address)
+        if installed.get('gateway') != GATEWAY or installed.get('interface') != bridge:
             raise RuntimeError('Could not route ' + address + ' through Lima')
         return result.returncode == 0 and 'File exists' not in result.stderr
 

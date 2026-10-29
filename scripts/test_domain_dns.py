@@ -97,18 +97,66 @@ class DomainTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as work:
             routes = Routes(Path(work) / 'routes.json')
             routes.lookup = Mock(side_effect=[
+                {'interface': 'bridge101', 'flags': '<HOST,LLINFO>'},
                 {'flags': '<HOST,WASCLONED,IFSCOPE>', 'interface': 'utun5'},
-                {'gateway': GATEWAY},
+                {'gateway': GATEWAY, 'interface': 'bridge101'},
             ])
             routes.command = Mock(return_value=Mock(returncode=0, stderr=''))
             self.assertTrue(routes.install('95.173.128.90'))
             self.assertEqual(routes.command.call_args_list[0].args,
                              ('delete', '-host', '-ifscope', 'utun5', '95.173.128.90'))
-            routes.lookup.side_effect = [{'flags': '<HOST,STATIC>', 'interface': 'utun5'}, {'gateway': 'other'}]
+            routes.lookup.side_effect = [
+                {'interface': 'bridge101', 'flags': '<HOST,LLINFO>'},
+                {'flags': '<HOST,STATIC>', 'interface': 'utun5'}, {'gateway': 'other'}]
             routes.command.reset_mock()
             with self.assertRaises(RuntimeError):
                 routes.install('95.173.128.90')
             self.assertFalse(any(call.args[0] == 'delete' for call in routes.command.call_args_list))
+
+    def test_vm_restart_repairs_only_owned_host_route_on_wrong_interface(self):
+        with tempfile.TemporaryDirectory() as work:
+            routes = Routes(Path(work) / 'routes.json')
+            address = '95.173.128.90'
+            stale = {'gateway': GATEWAY, 'interface': 'en0', 'destination': address, 'flags': '<HOST,STATIC>'}
+            bridge = {'interface': 'bridge102', 'flags': '<HOST,LLINFO>'}
+            healthy = {'gateway': GATEWAY, 'interface': 'bridge102'}
+            routes.entries[address] = {'owned': True}
+            routes.lookup = Mock(side_effect=[bridge, stale, healthy])
+            routes.command = Mock(return_value=Mock(returncode=0, stderr=''))
+            self.assertTrue(routes.install(address))
+            self.assertEqual([call.args for call in routes.command.call_args_list],
+                             [('delete', '-host', address, GATEWAY), ('add', '-host', address, GATEWAY)])
+            routes.lookup.side_effect = [bridge, healthy]
+            routes.command.reset_mock()
+            self.assertFalse(routes.install(address))
+            routes.command.assert_not_called()
+            for owned, destination in ((False, address), (True, '95.173.128.0')):
+                routes.entries[address] = {'owned': owned}
+                routes.lookup.side_effect = [bridge, dict(stale, destination=destination)]
+                with self.assertRaises(RuntimeError):
+                    routes.install(address)
+                routes.command.assert_not_called()
+
+    def test_absent_vm_bridge_never_creates_route_through_vpn_or_en0(self):
+        with tempfile.TemporaryDirectory() as work:
+            routes = Routes(Path(work) / 'routes.json')
+            routes.command = Mock()
+            for gateway in ({'interface': 'en0'}, {'interface': 'utun5'},
+                            {'interface': 'bridge101', 'flags': '<GATEWAY,HOST>'}):
+                routes.lookup = Mock(return_value=gateway)
+                with self.assertRaises(RuntimeError):
+                    routes.install('95.173.128.90')
+                routes.command.assert_not_called()
+
+    def test_route_verification_checks_interface_not_just_gateway(self):
+        with tempfile.TemporaryDirectory() as work:
+            routes = Routes(Path(work) / 'routes.json')
+            routes.lookup = Mock(side_effect=[
+                {'interface': 'bridge101'}, {'interface': 'utun5'},
+                {'gateway': GATEWAY, 'interface': 'en0'}])
+            routes.command = Mock(return_value=Mock(returncode=0, stderr=''))
+            with self.assertRaises(RuntimeError):
+                routes.install('95.173.128.90')
 
     def test_cleanup_preserves_other_routes(self):
         with tempfile.TemporaryDirectory() as work:

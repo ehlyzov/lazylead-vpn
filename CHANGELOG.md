@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Repair owned DNS host routes that macOS rebinds to the wrong interface after Lima restarts; refuse new routes while the VM gateway has no local bridge.
+
 ## 0.4.0 — 2026-10-23
 
 - Added persistent received/sent traffic totals and live speeds for the Lima uplink and Mac-facing link in Direct mode.
