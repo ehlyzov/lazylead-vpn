@@ -14,17 +14,18 @@ IPv4 default route и DNS внутри VM идут к провайдеру че�
 | Lazylead VPN.app | Mac, пользователь | Запуск/остановка VM и проверка её default route |
 | `io.lazylead.direct-network` | Mac, root | socket_vmnet, сокет `/private/var/run/lazylead-direct.sock` |
 | `lazylead-direct-router.service` | VM, root | Ограниченный IPv4 forwarding/NAT с `lima0` на `direct0` |
-| `io.lazylead.gov-dns` | Mac, root | DNS-to-route для `.ru`, `.рф`, `tbank-online.com` и `codenrock.com`, TCP/UDP `127.0.0.1:1054` |
+| `io.lazylead.gov-dns` | Mac, root | DNS-to-route для `.ru`, `.рф`, `tbank-online.com`, `codenrock.com`, `hideogenius.com` и `ppc.ipchanger.live`, TCP/UDP `127.0.0.1:1054` |
 | systemd-resolved | VM | DNS для Mac на `192.168.64.2:1053` |
 | `io.lazylead.direct-routes` | Mac, root | Установка и проверка снимка префиксов Yandex Cloud раз в минуту |
 | `lazylead-transmission.service` | VM, пользователь | Transmission с writable virtiofs `~/Downloads` |
 
 Имена `gov-dns` и `install_gov_routes.sh` исторические; сейчас они обслуживают
-все `.ru` и `.рф` (`xn--p1ai`), а также `tbank-online.com` и `codenrock.com` с поддоменами.
+все `.ru` и `.рф` (`xn--p1ai`), а также `tbank-online.com`, `codenrock.com`, `hideogenius.com` и `ppc.ipchanger.live` с поддоменами.
 
 ## DNS-to-route
 
-`/etc/resolver/ru`, `/etc/resolver/xn--p1ai`, `/etc/resolver/tbank-online.com` и `/etc/resolver/codenrock.com`
+`/etc/resolver/ru`, `/etc/resolver/xn--p1ai`, `/etc/resolver/tbank-online.com`, `/etc/resolver/codenrock.com`,
+`/etc/resolver/hideogenius.com` и `/etc/resolver/ppc.ipchanger.live`
 выбирают локальную DNS-службу.
 Она запрашивает DNS через Lima, устанавливает IPv4-маршруты для полученных адресов
 и только затем отдаёт ответ приложению. Если маршрут установить не удалось,

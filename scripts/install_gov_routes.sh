@@ -6,7 +6,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TARGET=/opt/lazylead-direct/domain-dns
 LABEL=io.lazylead.gov-dns
 PLIST="/Library/LaunchDaemons/$LABEL.plist"
-DOMAINS=(ru xn--p1ai tbank-online.com codenrock.com)
+DOMAINS=(ru xn--p1ai tbank-online.com codenrock.com hideogenius.com ppc.ipchanger.live)
 LEGACY_DOMAINS=(gov.ru gosuslugi.ru)
 WHEEL="$ROOT_DIR/build/domain-routing/dnslib-0.9.26-py3-none-any.whl"
 [[ "$(id -u)" == 0 ]] || { echo 'Run with sudo.' >&2; exit 1; }
@@ -23,7 +23,7 @@ if [[ "${1:-}" == remove ]]; then
   rm -f "$PLIST"
   dscacheutil -flushcache
   killall -HUP mDNSResponder
-  echo 'Removed .ru, .рф, tbank-online.com and codenrock.com resolvers and their owned routes.'
+  echo 'Removed .ru, .рф, tbank-online.com, codenrock.com, hideogenius.com and ppc.ipchanger.live resolvers and their owned routes.'
   exit 0
 fi
 [[ $# == 0 ]] || exit 2
@@ -60,7 +60,7 @@ PY
 # Verify the Lima resolver before modifying host DNS configuration.
 PYTHONPATH="$temporary_dir/vendor" python3 - <<'PY'
 from dnslib import DNSRecord, QTYPE, RCODE
-for host in ('gov.ru', 'gosuslugi.ru', 'yandex.ru', 'президент.рф', 'tbank-online.com', 'codenrock.com'):
+for host in ('gov.ru', 'gosuslugi.ru', 'yandex.ru', 'президент.рф', 'tbank-online.com', 'codenrock.com', 'play.hideogenius.com', 'ppc.ipchanger.live'):
     r = DNSRecord.parse(DNSRecord.question(host).send('192.168.64.2', 1053, timeout=3))
     assert r.header.rcode == RCODE.NOERROR and any(x.rtype == QTYPE.A for x in r.rr), 'Lima DNS unavailable for ' + host
 print('Lima upstream DNS: OK')
@@ -98,7 +98,7 @@ import subprocess
 from dnslib import DNSRecord, QTYPE, RCODE
 for attempt in range(10):
     try:
-        for host in ('gov.ru', 'gosuslugi.ru', 'yandex.ru', 'президент.рф', 'tbank-online.com', 'codenrock.com'):
+        for host in ('gov.ru', 'gosuslugi.ru', 'yandex.ru', 'президент.рф', 'tbank-online.com', 'codenrock.com', 'play.hideogenius.com', 'ppc.ipchanger.live'):
             answer = DNSRecord.parse(DNSRecord.question(host).send('127.0.0.1', 1054, timeout=5))
             assert answer.header.rcode == RCODE.NOERROR
             addresses = [str(rr.rdata) for rr in answer.rr if rr.rtype == QTYPE.A]
@@ -138,11 +138,11 @@ python3 - <<'PY'
 import socket
 import subprocess
 for host in ('gov.ru', 'government.gov.ru', 'gosuslugi.ru', 'esia.gosuslugi.ru',
-             'yandex.ru', 'президент.рф', 'tbank-online.com', 'codenrock.com'):
+             'yandex.ru', 'президент.рф', 'tbank-online.com', 'codenrock.com', 'play.hideogenius.com', 'ppc.ipchanger.live'):
     addresses = {row[4][0] for row in socket.getaddrinfo(host, 443, socket.AF_INET)}
     assert addresses, 'No IPv4 addresses for ' + host
     for address in addresses:
         route = subprocess.check_output(['/sbin/route', '-n', 'get', address], text=True)
         assert 'gateway: 192.168.64.2' in route, 'System DNS route check failed for ' + host
-print('VERIFIED: .ru, .рф, tbank-online.com and codenrock.com with their subdomains use Lima (IPv4).')
+print('VERIFIED: .ru, .рф, tbank-online.com, codenrock.com, hideogenius.com and ppc.ipchanger.live with their subdomains use Lima (IPv4).')
 PY
