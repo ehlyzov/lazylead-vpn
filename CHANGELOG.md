@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Route the observed video CDN `vkvideo.cloud` and its subdomains through Lima, covering media delivery separately from the player page.
+
 - Route the Hideogenius player (`hideogenius.com`) and its observed auxiliary endpoint (`ppc.ipchanger.live`), including subdomains, through Lima.
 
 - Synchronize the Direct-mode icon with an already running VM on app launch and external starts/stops, using a bounded local network check.

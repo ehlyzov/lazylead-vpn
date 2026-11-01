@@ -22,7 +22,9 @@ class DomainTests(unittest.TestCase):
                      'tbank-online.com', 'TBANK-ONLINE.COM.', 'one.two.tbank-online.com',
                      'codenrock.com', 'CODENROCK.COM.', 'one.two.codenrock.com',
                      'hideogenius.com', 'PLAY.HIDEOGENIUS.COM.', 'one.two.hideogenius.com',
-                     'ppc.ipchanger.live', 'PPC.IPCHANGER.LIVE.', 'one.ppc.ipchanger.live'):
+                     'ppc.ipchanger.live', 'PPC.IPCHANGER.LIVE.', 'one.ppc.ipchanger.live',
+                     'vkvideo.cloud', 'VKVIDEO.CLOUD.', 'e1-72-f3-r402.vkvideo.cloud',
+                     'one.two.vkvideo.cloud'):
             self.assertTrue(in_zone(name))
         for name in ('example.com', 'gov.ru.example.org', 'gosuslugi.ru.example.org',
                      'example.notru', 'example.ru.com', 'example.notxn--p1ai',
@@ -31,7 +33,8 @@ class DomainTests(unittest.TestCase):
                      'notcodenrock.com', 'codenrock.com.example.org', 'codenrock.net',
                      'nothideogenius.com', 'hideogenius.com.example.org',
                      'ipchanger.live', 'other.ipchanger.live', 'notppc.ipchanger.live',
-                     'ppc.ipchanger.live.example.org'):
+                     'ppc.ipchanger.live.example.org', 'notvkvideo.cloud',
+                     'vkvideo.cloud.example.org', 'vkvideo.com'):
             self.assertFalse(in_zone(name))
             question = DNSRecord.question(name)
             resolver, _ = self.resolver(question.reply())
@@ -48,9 +51,9 @@ class DomainTests(unittest.TestCase):
         routes.ensure.assert_called_once_with({'95.173.128.90'}, retention=86460)
 
     def test_routes_exist_before_address_is_returned(self):
-        question = DNSRecord.question('play.hideogenius.com')
+        question = DNSRecord.question('e1-72-f3-r402.vkvideo.cloud')
         answer = question.reply()
-        answer.add_answer(RR('play.hideogenius.com', QTYPE.A, ttl=172800, rdata=A('95.173.128.90')))
+        answer.add_answer(RR('e1-72-f3-r402.vkvideo.cloud', QTYPE.A, ttl=172800, rdata=A('95.173.128.90')))
         resolver, routes = self.resolver(answer)
         result = resolver.resolve(question, None)
         self.assertEqual(result.header.rcode, RCODE.NOERROR)
@@ -73,7 +76,7 @@ class DomainTests(unittest.TestCase):
         self.assertEqual(routes.ensure.call_args.args[0], {'95.173.128.90'})
 
     def test_ipv6_cannot_bypass_and_ech_is_preserved(self):
-        question = DNSRecord.question('play.hideogenius.com', 'AAAA')
+        question = DNSRecord.question('e1-72-f3-r402.vkvideo.cloud', 'AAAA')
         resolver, _ = self.resolver(question.reply())
         result = resolver.resolve(question, None)
         self.assertEqual(result.header.rcode, RCODE.NOERROR)

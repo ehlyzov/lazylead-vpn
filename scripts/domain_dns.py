@@ -19,7 +19,7 @@ from dnslib.server import BaseResolver, DNSServer, DNSLogger
 RDMAP['SVCB'] = HTTPS
 GATEWAY = '192.168.64.2'
 RETENTION = 86400
-DOMAINS = ('ru', 'xn--p1ai', 'tbank-online.com', 'codenrock.com', 'hideogenius.com', 'ppc.ipchanger.live')  # .рф in DNS/IDNA form.
+DOMAINS = ('ru', 'xn--p1ai', 'tbank-online.com', 'codenrock.com', 'hideogenius.com', 'ppc.ipchanger.live', 'vkvideo.cloud')  # .рф in DNS/IDNA form.
 
 
 def in_zone(name):

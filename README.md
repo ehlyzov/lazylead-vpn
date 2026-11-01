@@ -15,7 +15,7 @@ through the VM to your internet provider while the Mac's primary VPN stays in us
 | `gov.ru`, `gosuslugi.ru`, `esia.gosuslugi.ru` | Covered by the `.ru` rule |
 | `tbank-online.com` and its subdomains | Mac → Lima → internet provider |
 | `codenrock.com` and its subdomains | Mac → Lima → internet provider |
-| Player `hideogenius.com`, endpoint `ppc.ipchanger.live`, and their subdomains | Mac → Lima → internet provider |
+| Player `hideogenius.com`, endpoint `ppc.ipchanger.live`, video CDN `vkvideo.cloud`, and their subdomains | Mac → Lima → internet provider |
 | Yandex Cloud: published IPv4 ranges, API, console, Object Storage, CDN | Mac → Lima → internet provider, using the installed address snapshot |
 | Transmission inside Lima | Lima → internet provider; downloads are saved to `~/Downloads` on the Mac |
 | Other Mac traffic | The Mac's normal route, such as Pepper VPN |

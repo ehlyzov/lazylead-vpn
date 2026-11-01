@@ -38,7 +38,7 @@ sudo ./scripts/install_gov_routes.sh
 ```
 
 Несмотря на историческое имя, этот установщик обслуживает все `.ru` и `.рф`,
-а также `tbank-online.com`, `codenrock.com`, `hideogenius.com` и `ppc.ipchanger.live` с поддоменами.
+а также `tbank-online.com`, `codenrock.com`, `hideogenius.com`, `ppc.ipchanger.live` и `vkvideo.cloud` с поддоменами.
 
 ## Новый Mac: 1. Подготовка
 
@@ -116,13 +116,13 @@ DNS слушает `192.168.64.2:1053` по TCP и UDP.
 
 ## 4. Правила на Mac
 
-Все `.ru`, `.рф`, `tbank-online.com`, `codenrock.com`, `hideogenius.com`, `ppc.ipchanger.live` и их поддомены:
+Все `.ru`, `.рф`, `tbank-online.com`, `codenrock.com`, `hideogenius.com`, `ppc.ipchanger.live`, `vkvideo.cloud` и их поддомены:
 
 ```bash
 sudo ./scripts/install_gov_routes.sh
 ```
 
-Успешный результат: `VERIFIED: .ru, .рф, tbank-online.com, codenrock.com, hideogenius.com and ppc.ipchanger.live with their subdomains use Lima (IPv4).`
+Успешный результат: `VERIFIED: .ru, .рф, tbank-online.com, codenrock.com, hideogenius.com, ppc.ipchanger.live and vkvideo.cloud with their subdomains use Lima (IPv4).`
 
 Yandex Cloud, включая сервисы вне `.ru`:
 
