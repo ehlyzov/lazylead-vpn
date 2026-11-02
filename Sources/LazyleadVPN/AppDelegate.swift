@@ -30,6 +30,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.menuController = menuController
         menuController.render(state: vpnController.state)
         vpnController.refreshDirectState()
+        if CommandLine.arguments.contains("--show-network") { menuController.openNetwork() }
         if CommandLine.arguments.contains("--show-routes") || !UserDefaults.standard.bool(forKey: "hasShownRoutingOverview") {
             menuController.openRoutes()
             UserDefaults.standard.set(true, forKey: "hasShownRoutingOverview")

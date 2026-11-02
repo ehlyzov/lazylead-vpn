@@ -3,10 +3,23 @@ import LazyleadVPNCore
 
 final class AdminScriptRunner {
     private let logStore: LogStore
+    private var administratorOutput = ""
     private let sudoersConfiguredPath = "/etc/sudoers.d/lazylead-vpn"
 
     init(logStore: LogStore) {
         self.logStore = logStore
+    }
+
+    func authorize(_ command: VPNCommand) throws {
+        let shell = ([command.executable] + command.arguments).map(ShellQuoter.quote).joined(separator: " ")
+        let status = try runWithAdministratorPrompt(shell)
+        guard status == 0 else {
+            throw NSError(domain: "LazyleadVPN.Authorization", code: Int(status), userInfo: [
+                NSLocalizedDescriptionKey: administratorOutput.isEmpty
+                    ? "The operation failed or administrator authorization was cancelled."
+                    : String(administratorOutput.suffix(2500))
+            ])
+        }
     }
 
     @discardableResult
@@ -62,6 +75,7 @@ final class AdminScriptRunner {
         try process.run()
 
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        administratorOutput = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         if let text = String(data: data, encoding: .utf8), !text.isEmpty {
             logStore.append(text.trimmingCharacters(in: .newlines))
         }

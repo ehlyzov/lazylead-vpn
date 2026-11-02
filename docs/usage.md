@@ -119,3 +119,14 @@ sudo ./scripts/install_direct_routes.sh
 
 The `.ru`/`.рф` DNS service learns new addresses as queries arrive. Yandex Cloud
 services in other zones use the separate prefix snapshot.
+
+
+## Network recovery and editable rules
+
+Open **Network & Routes…** from the Lazylead menu. **Restart Lima** performs a graceful VM restart. **Repair network…** gracefully stops the VM, restarts `socket_vmnet`, waits for a new ready socket, then starts the VM and checks its direct default route. Downloads pause during recovery. If authorization is cancelled, the VM remains stopped and the window reports the failure.
+
+Choose **Domain** to add a name such as `example.com`, `.ru`, or `.рф`. The rule covers the domain and every subdomain. Choose **IPv4 address / network** for a public host or CIDR, such as `8.8.8.8` or `8.8.8.0/24`. Select an existing row and press **Remove selected…** to remove it. Each mutation uses the normal macOS administrator prompt; no new passwordless sudo rules are installed.
+
+Rules are saved in `/opt/lazylead-direct/domain-dns/rules.json`. The first edit adopts installed Lazylead resolver rules and upgrades the DNS helper from the app bundle. Initial Lima/network provisioning is still required. The Yandex Cloud address snapshot has its own installer and remains visible in **Traffic & Routes…**.
+
+Removing a domain stops future DNS routing for that name unless a broader rule still covers it. Addresses shared with another active rule stay through Lima. IPv4 routes learned before this version lack domain attribution and expire according to their existing lease (DNS TTL plus one day); they are not deleted speculatively. Existing browser connections and DNS caches may need a reload. An unrelated static route or resolver is never replaced or removed. Local, management, multicast and default routes are protected.

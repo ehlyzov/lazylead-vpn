@@ -3,11 +3,13 @@
 [English](README.md) | **Русский**
 
 Приложение в строке меню macOS для управления сетевым шлюзом в Lima.
-Текущая версия — **0.4.0**. Основной режим: выбранный трафик идёт через
+Текущая версия — **0.5.0**. Основной режим: выбранный трафик идёт через
 виртуальную машину напрямую к провайдеру, а основной VPN на Mac продолжает работать.
 **Check Point сохранён как отдельный режим.**
 
 ## Куда идёт трафик
+
+В таблице перечислены правила по умолчанию. Домены и пользовательские IPv4-правила меняются в **Network & Routes…**.
 
 | Трафик | Путь в основном режиме |
 | --- | --- |
@@ -40,6 +42,7 @@
 | `Start Lima (Direct)` | Запустить VM и проверить, что её единственный IPv4 default route использует `direct0` |
 | `Stop Lima` | Остановить VM; выбранные сайты и Transmission станут недоступны |
 | `Traffic & Routes…` | Учёт трафика Lima и текущей скорости; домены, диапазоны Yandex Cloud, состояние Transmission и IPv4-маршруты с поиском |
+| `Network & Routes…` | Перезапуск Lima, восстановление сетевого моста, добавление/удаление доменов и публичных IPv4/CIDR с запросом прав macOS |
 | `Settings…` | Посмотреть версию, режим, VM, пути, журнал и таблицу маршрутов |
 | `Quit Lazylead VPN` / `⌘Q` | Закрыть приложение; VM и системные службы продолжают работать |
 
@@ -54,6 +57,7 @@ Transmission Web UI: [127.0.0.1:9092/transmission/web/](http://127.0.0.1:9092/tr
 ./scripts/prepare_dependencies.sh
 swift run LazyleadVPNCoreSelfTest
 PYTHONPATH=build/domain-routing/vendor python3 scripts/test_domain_dns.py
+PYTHONPATH=build/domain-routing/vendor python3 scripts/test_routing_control.py
 python3 scripts/test_host_direct_routes.py
 ./scripts/build_app_bundle.sh
 ./scripts/install_app.sh

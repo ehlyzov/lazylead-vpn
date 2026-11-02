@@ -7,6 +7,13 @@ TARGET=/opt/lazylead-direct/domain-dns
 LABEL=io.lazylead.gov-dns
 PLIST="/Library/LaunchDaemons/$LABEL.plist"
 DOMAINS=(ru xn--p1ai tbank-online.com codenrock.com hideogenius.com ppc.ipchanger.live vkvideo.cloud)
+if [[ -f /opt/lazylead-direct/domain-dns/rules.json ]]; then
+  domains_text="$(PYTHONPATH="$ROOT_DIR/scripts" python3 -c 'import routing_rules; print("\n".join(routing_rules.load()["domains"]))')"
+  DOMAINS=()
+  while IFS= read -r domain; do
+    [[ -z "$domain" ]] || DOMAINS+=("$domain")
+  done <<< "$domains_text"
+fi
 LEGACY_DOMAINS=(gov.ru gosuslugi.ru)
 WHEEL="$ROOT_DIR/build/domain-routing/dnslib-0.9.26-py3-none-any.whl"
 [[ "$(id -u)" == 0 ]] || { echo 'Run with sudo.' >&2; exit 1; }
@@ -23,7 +30,7 @@ if [[ "${1:-}" == remove ]]; then
   rm -f "$PLIST"
   dscacheutil -flushcache
   killall -HUP mDNSResponder
-  echo 'Removed .ru, .рф, tbank-online.com, codenrock.com, hideogenius.com, ppc.ipchanger.live and vkvideo.cloud resolvers and their owned routes.'
+  echo 'Removed configured Lazylead domain resolvers and their owned IPv4 routes.'
   exit 0
 fi
 [[ $# == 0 ]] || exit 2
@@ -48,6 +55,7 @@ done
 temporary_dir="$(mktemp -d /private/tmp/lazylead-gov.XXXXXX)"
 trap 'rm -rf "$temporary_dir"' EXIT
 cp "$ROOT_DIR/scripts/domain_dns.py" "$temporary_dir/domain_dns.py"
+cp "$ROOT_DIR/scripts/routing_rules.py" "$temporary_dir/routing_rules.py"
 python3 - "$WHEEL" "$temporary_dir" <<'PY'
 from pathlib import Path
 import sys
@@ -58,9 +66,12 @@ with zipfile.ZipFile(sys.argv[1]) as archive:
     archive.extractall(Path(sys.argv[2]) / 'vendor')
 PY
 # Verify the Lima resolver before modifying host DNS configuration.
-PYTHONPATH="$temporary_dir/vendor" python3 - <<'PY'
+PYTHONPATH="$temporary_dir:$temporary_dir/vendor" python3 - <<'PY'
 from dnslib import DNSRecord, QTYPE, RCODE
+import routing_rules
 for host in ('gov.ru', 'gosuslugi.ru', 'yandex.ru', 'президент.рф', 'tbank-online.com', 'codenrock.com', 'play.hideogenius.com', 'ppc.ipchanger.live', 'e1-72-f3-r402.vkvideo.cloud', '6c-97-be-r504.vkvideo.cloud'):
+    if not routing_rules.contains(host, routing_rules.load()['domains']):
+        continue
     r = DNSRecord.parse(DNSRecord.question(host).send('192.168.64.2', 1053, timeout=3))
     assert r.header.rcode == RCODE.NOERROR and any(x.rtype == QTYPE.A for x in r.rr), 'Lima DNS unavailable for ' + host
 print('Lima upstream DNS: OK')
@@ -70,6 +81,7 @@ launchctl bootout "system/$LABEL" 2>/dev/null || true
 install -d -o root -g wheel -m 0755 "$TARGET" "$TARGET/vendor" /etc/resolver /var/log/lazylead-direct
 install -d -o root -g wheel -m 0700 /var/db/lazylead-domain-dns
 install -o root -g wheel -m 0755 "$temporary_dir/domain_dns.py" "$TARGET/domain_dns.py"
+install -o root -g wheel -m 0644 "$temporary_dir/routing_rules.py" "$TARGET/routing_rules.py"
 cp -R "$temporary_dir/vendor/dnslib" "$TARGET/vendor/"
 cp -R "$temporary_dir/vendor/dnslib-0.9.26.dist-info" "$TARGET/vendor/"
 chown -R root:wheel "$TARGET/vendor"
@@ -92,13 +104,16 @@ path.chmod(0o644)
 PY
 plutil -lint "$PLIST"
 launchctl bootstrap system "$PLIST"
-PYTHONPATH="$TARGET/vendor" python3 - <<'PY'
+PYTHONPATH="$TARGET:$TARGET/vendor" python3 - <<'PY'
 import time
 import subprocess
 from dnslib import DNSRecord, QTYPE, RCODE
+import routing_rules
 for attempt in range(10):
     try:
         for host in ('gov.ru', 'gosuslugi.ru', 'yandex.ru', 'президент.рф', 'tbank-online.com', 'codenrock.com', 'play.hideogenius.com', 'ppc.ipchanger.live', 'e1-72-f3-r402.vkvideo.cloud', '6c-97-be-r504.vkvideo.cloud'):
+            if not routing_rules.contains(host, routing_rules.load()['domains']):
+                continue
             answer = DNSRecord.parse(DNSRecord.question(host).send('127.0.0.1', 1054, timeout=5))
             assert answer.header.rcode == RCODE.NOERROR
             addresses = [str(rr.rdata) for rr in answer.rr if rr.rtype == QTYPE.A]
@@ -134,15 +149,18 @@ for domain in "${LEGACY_DOMAINS[@]}"; do
 done
 dscacheutil -flushcache
 killall -HUP mDNSResponder
-python3 - <<'PY'
+PYTHONPATH="$TARGET:$TARGET/vendor" python3 - <<'PY'
 import socket
 import subprocess
+import routing_rules
 for host in ('gov.ru', 'government.gov.ru', 'gosuslugi.ru', 'esia.gosuslugi.ru',
              'yandex.ru', 'президент.рф', 'tbank-online.com', 'codenrock.com', 'play.hideogenius.com', 'ppc.ipchanger.live', 'e1-72-f3-r402.vkvideo.cloud', '6c-97-be-r504.vkvideo.cloud'):
+    if not routing_rules.contains(host, routing_rules.load()['domains']):
+        continue
     addresses = {row[4][0] for row in socket.getaddrinfo(host, 443, socket.AF_INET)}
     assert addresses, 'No IPv4 addresses for ' + host
     for address in addresses:
         route = subprocess.check_output(['/sbin/route', '-n', 'get', address], text=True)
         assert 'gateway: 192.168.64.2' in route, 'System DNS route check failed for ' + host
-print('VERIFIED: .ru, .рф, tbank-online.com, codenrock.com, hideogenius.com, ppc.ipchanger.live and vkvideo.cloud with their subdomains use Lima (IPv4).')
+print('VERIFIED: configured domains and their subdomains use Lima (IPv4): ' + ', '.join(routing_rules.load()['domains']))
 PY

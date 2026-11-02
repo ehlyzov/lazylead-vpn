@@ -1,13 +1,20 @@
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from dnslib import DNSRecord, RR, QTYPE, RCODE, A, AAAA, CNAME, HTTPS
 from domain_dns import DomainResolver, Routes, GATEWAY, in_zone
 
 
 class DomainTests(unittest.TestCase):
+    def setUp(self):
+        self.config = tempfile.TemporaryDirectory()
+        self.addCleanup(self.config.cleanup)
+        config_patch = patch('routing_rules.CONFIG', Path(self.config.name) / 'rules.json')
+        config_patch.start()
+        self.addCleanup(config_patch.stop)
+
     def resolver(self, answer):
         routes = Mock()
         resolver = DomainResolver(routes)
@@ -48,7 +55,7 @@ class DomainTests(unittest.TestCase):
         resolver, routes = self.resolver(answer)
         response = resolver.resolve(question, None)
         self.assertEqual(response.header.rcode, RCODE.NOERROR)
-        routes.ensure.assert_called_once_with({'95.173.128.90'}, retention=86460)
+        routes.ensure.assert_called_once_with({'95.173.128.90'}, retention=86460, domain=question.q.qname)
 
     def test_routes_exist_before_address_is_returned(self):
         question = DNSRecord.question('e1-72-f3-r402.vkvideo.cloud')
@@ -57,7 +64,7 @@ class DomainTests(unittest.TestCase):
         resolver, routes = self.resolver(answer)
         result = resolver.resolve(question, None)
         self.assertEqual(result.header.rcode, RCODE.NOERROR)
-        routes.ensure.assert_called_once_with({'95.173.128.90'}, retention=259200)
+        routes.ensure.assert_called_once_with({'95.173.128.90'}, retention=259200, domain=question.q.qname)
         routes.ensure.side_effect = RuntimeError('route installation failed')
         failed = resolver.resolve(question, None)
         self.assertEqual(failed.header.rcode, RCODE.SERVFAIL)

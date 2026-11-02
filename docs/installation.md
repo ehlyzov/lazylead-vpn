@@ -40,6 +40,8 @@ sudo ./scripts/install_gov_routes.sh
 Despite its historical name, this installer handles all `.ru` and `.рф` domains, plus
 `tbank-online.com`, `codenrock.com`, `hideogenius.com`, `ppc.ipchanger.live`, and `vkvideo.cloud`, including their subdomains.
 
+After initial provisioning, use **Network & Routes…** in the app for network recovery and rule changes. The first rule change upgrades the installed DNS helper through the macOS administrator prompt. Re-running this installer preserves GUI preferences.
+
 ## New Mac: 1. Prerequisites
 
 Supported setup: Apple Silicon, macOS 14+, and Ubuntu 24.04 ARM64 in Lima 2+.
@@ -123,7 +125,7 @@ All `.ru` and `.рф` domains, plus `tbank-online.com`, `codenrock.com`, `hideog
 sudo ./scripts/install_gov_routes.sh
 ```
 
-Successful output: `VERIFIED: .ru, .рф, tbank-online.com, codenrock.com, hideogenius.com, ppc.ipchanger.live and vkvideo.cloud with their subdomains use Lima (IPv4).`
+Successful output for the default rules: `VERIFIED: configured domains and their subdomains use Lima (IPv4): ru, xn--p1ai, tbank-online.com, codenrock.com, hideogenius.com, ppc.ipchanger.live, vkvideo.cloud`
 
 Yandex Cloud, including services outside `.ru`:
 

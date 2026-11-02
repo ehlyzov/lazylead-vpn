@@ -101,6 +101,7 @@ func run() throws {
     }
     try runRoutingTests()
     try runTrafficAccountingTests()
+    try runManagedRoutingTests()
 }
 
 do {

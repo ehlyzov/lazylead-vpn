@@ -151,6 +151,72 @@ final class VPNController {
         }
     }
 
+    private func routingTool(_ arguments: [String]) -> VPNCommand {
+        let bundled = "\(projectDirectory)/routing_control.py"
+        let script = FileManager.default.fileExists(atPath: bundled) ? bundled : "\(projectDirectory)/scripts/routing_control.py"
+        return VPNCommand(executable: "/usr/bin/python3", arguments: [script] + arguments)
+    }
+
+    func readManagedRules(completion: @escaping (Result<ManagedRoutingRules, Error>) -> Void) {
+        queue.async {
+            let result = Result<ManagedRoutingRules, Error> {
+                let output = try self.commandRunner.output(self.routingTool(["status"]), timeout: 5)
+                guard output.status == 0, let data = output.text.data(using: .utf8) else {
+                    throw NSError(domain: "LazyleadVPN.Rules", code: 1, userInfo: [NSLocalizedDescriptionKey: output.text])
+                }
+                return try JSONDecoder().decode(ManagedRoutingRules.self, from: data)
+            }
+            DispatchQueue.main.async { completion(result) }
+        }
+    }
+
+    func changeRoutingRule(kind: RoutingRuleKind, value: String, remove: Bool,
+                           completion: @escaping (Result<String, Error>) -> Void) {
+        directOperation(completion: completion) {
+            let normalized = try kind.normalize(value)
+            try self.adminRunner.authorize(self.routingTool([remove ? "remove" : "add", kind.rawValue, normalized]))
+            return remove ? "Rule removed. Shared IPs and older cached connections may continue through Lima until they expire."
+                : "Rule saved. New connections to this destination use Lima. Reload the site if it was already open."
+        }
+    }
+
+    func restartDirectNetwork(repairBridge: Bool, completion: @escaping (Result<String, Error>) -> Void) {
+        directOperation(completion: completion) {
+            self.setState(.disconnecting)
+            // Stop gracefully before replacing the backend of a running virtual NIC.
+            let status = try self.commandRunner.output(self.commands.vmStatusCommand(), timeout: 5)
+            guard status.status == 0 else {
+                throw NSError(domain: "LazyleadVPN.Recovery", code: 1, userInfo: [NSLocalizedDescriptionKey: "Could not read the VM status."])
+            }
+            if status.text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() != "stopped" {
+                try self.runFinite(self.commands.stopVMCommand())
+            }
+            if repairBridge {
+                try self.adminRunner.authorize(self.routingTool(["repair-network"]))
+            }
+            self.setState(.startingVM)
+            try self.runFinite(self.commands.startVMCommand())
+            try self.verifyDirectNetwork()
+            self.setState(.connected)
+            return repairBridge ? "Network repaired. Lima is running with its direct connection to the router."
+                : "Lima restarted and its direct connection is ready."
+        }
+    }
+
+    private func directOperation(completion: @escaping (Result<String, Error>) -> Void,
+                                 operation: @escaping () throws -> String) {
+        queue.async {
+            let result = Result<String, Error> {
+                guard self.usesDirectNetworking, self.vmGateway == "192.168.64.2" else {
+                    throw NSError(domain: "LazyleadVPN.Rules", code: 1, userInfo: [NSLocalizedDescriptionKey: "These controls require Direct mode with the configured Lima gateway 192.168.64.2."])
+                }
+                return try operation()
+            }
+            if case let .failure(error) = result { self.setState(.error(error.localizedDescription)) }
+            DispatchQueue.main.async { completion(result) }
+        }
+    }
+
     func openLastSAMLURL() {
         guard let lastSAMLURL else {
             return

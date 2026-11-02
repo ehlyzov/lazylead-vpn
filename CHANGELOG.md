@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add Network & Routes controls for graceful Lima restart, administrator-authorized network bridge recovery, and persistent domain/public IPv4/CIDR rule editing with ownership-aware removal and rollback.
+
 - Route the observed video CDN `vkvideo.cloud` and its subdomains through Lima, covering media delivery separately from the player page.
 
 - Route the Hideogenius player (`hideogenius.com`) and its observed auxiliary endpoint (`ppc.ipchanger.live`), including subdomains, through Lima.

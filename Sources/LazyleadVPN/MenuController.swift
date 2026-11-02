@@ -9,11 +9,13 @@ final class MenuController: NSObject {
     private let trafficMonitor: TrafficMonitor
     private var infoWindowController: InfoWindowController?
     private var routesWindowController: RoutesWindowController?
+    private var networkWindowController: NetworkWindowController?
 
     private let connectMenuItem = NSMenuItem(title: "Connect", action: #selector(connect), keyEquivalent: "")
     private let disconnectMenuItem = NSMenuItem(title: "Disconnect", action: #selector(disconnect), keyEquivalent: "")
     private let settingsMenuItem = NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ",")
     private let routesMenuItem = NSMenuItem(title: "Traffic & Routes…", action: #selector(openRoutes), keyEquivalent: "")
+    private let networkMenuItem = NSMenuItem(title: "Network & Routes…", action: #selector(openNetwork), keyEquivalent: "")
     private let quitMenuItem = NSMenuItem(title: "Quit Lazylead VPN", action: #selector(quitApp), keyEquivalent: "q")
 
     init(vpnController: VPNController, logStore: LogStore) {
@@ -32,6 +34,7 @@ final class MenuController: NSObject {
     }
 
     func render(state: VPNState) {
+        networkWindowController?.render(state: state)
         connectMenuItem.isEnabled = state.canConnect
         disconnectMenuItem.isEnabled = state.canDisconnect
         statusItem.button?.image = CatStatusIcon.makeImage(active: state.usesActiveIcon)
@@ -54,11 +57,13 @@ final class MenuController: NSObject {
         disconnectMenuItem.target = self
         settingsMenuItem.target = self
         routesMenuItem.target = self
+        networkMenuItem.target = self
         quitMenuItem.target = self
 
         menu.addItem(connectMenuItem)
         menu.addItem(disconnectMenuItem)
         menu.addItem(routesMenuItem)
+        if vpnController.usesDirectNetworking { menu.addItem(networkMenuItem) }
         menu.addItem(settingsMenuItem)
         menu.addItem(.separator())
         menu.addItem(quitMenuItem)
@@ -86,6 +91,13 @@ final class MenuController: NSObject {
             )
         }
         infoWindowController?.show()
+    }
+
+    @objc func openNetwork() {
+        if networkWindowController == nil {
+            networkWindowController = NetworkWindowController(vpnController: vpnController)
+        }
+        networkWindowController?.show()
     }
 
     @objc func openRoutes() {

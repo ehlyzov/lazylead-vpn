@@ -12,6 +12,8 @@ import sys
 import threading
 import time
 
+import routing_rules
+
 sys.path.insert(0, str(Path(__file__).resolve().parent / 'vendor'))
 from dnslib import DNSRecord, QTYPE, RCODE, HTTPS, RDMAP
 from dnslib.server import BaseResolver, DNSServer, DNSLogger
@@ -19,15 +21,14 @@ from dnslib.server import BaseResolver, DNSServer, DNSLogger
 RDMAP['SVCB'] = HTTPS
 GATEWAY = '192.168.64.2'
 RETENTION = 86400
-DOMAINS = ('ru', 'xn--p1ai', 'tbank-online.com', 'codenrock.com', 'hideogenius.com', 'ppc.ipchanger.live', 'vkvideo.cloud')  # .рф in DNS/IDNA form.
+DOMAINS = routing_rules.DEFAULT_DOMAINS
 
 
 def in_zone(name):
     try:
-        name = str(name).rstrip('.').encode('idna').decode('ascii').lower()
-    except UnicodeError:
+        return routing_rules.contains(name, routing_rules.load()['domains'])
+    except (UnicodeError, ValueError, OSError):
         return False
-    return any(name == domain or name.endswith('.' + domain) for domain in DOMAINS)
 
 
 class Routes:
@@ -85,7 +86,7 @@ class Routes:
             raise RuntimeError('Could not route ' + address + ' through Lima')
         return result.returncode == 0 and 'File exists' not in result.stderr
 
-    def ensure(self, addresses, retention=RETENTION):
+    def ensure(self, addresses, retention=RETENTION, domain=None):
         with self.lock:
             for address in sorted(set(addresses)):
                 parsed = ipaddress.ip_address(address)
@@ -96,27 +97,102 @@ class Routes:
                 self.entries[address] = {
                     'expires': max(time.time() + retention, previous.get('expires', 0)),
                     'owned': created or previous.get('owned', False),
+                    'names': sorted(set(previous.get('names', [])) | ({str(domain).rstrip('.').lower()} if domain else set())),
+                    'legacy': previous.get('legacy', bool(previous and 'names' not in previous)),
                 }
-            self.save()
+                self.save()
 
     def remove_entry(self, address, entry):
         if not entry.get('owned') or self.dry_run:
             return
         route = self.lookup(address)
         if route.get('gateway') == GATEWAY and 'HOST' in route.get('flags', '') and route.get('destination') == address:
-            self.command('delete', '-host', address, GATEWAY)
+            result = self.command('delete', '-host', address, GATEWAY)
+            if result.returncode != 0:
+                raise RuntimeError('Could not remove owned route: ' + address)
 
     def maintain(self, remove_all=False):
+        rules = routing_rules.load()
+        manual = {x for x in rules['networks'] if '/' not in x}
         with self.lock:
+            if not remove_all:
+                for address in manual:
+                    if address not in self.entries:
+                        self.ensure({address}, retention=0)
             for address, entry in list(self.entries.items()):
                 # Validate persisted input before passing it to route(8).
                 if str(ipaddress.IPv4Address(address)) != address:
                     raise ValueError('Invalid persisted address')
-                if remove_all or entry['expires'] < time.time():
+                entry['legacy'] = entry.get('legacy', 'names' not in entry)
+                names = [name for name in entry.get('names', []) if routing_rules.contains(name, rules['domains'])]
+                tracked = 'names' in entry and not entry.get('legacy', False)
+                entry['names'] = names
+                pinned = address in manual and not remove_all
+                if remove_all or (not pinned and (entry['expires'] < time.time() or (tracked and not names))):
                     self.remove_entry(address, entry)
                     del self.entries[address]
                 else:
                     entry['owned'] = self.install(address) or entry['owned']
+            self.save()
+
+
+class PrefixRoutes(Routes):
+    """Persist only explicitly configured public prefixes, with separate ownership."""
+    def lookup(self, address):
+        output = self.command('get', '-net', address).stdout
+        return dict(re.findall(r'^\s*(destination|mask|gateway|interface|flags):\s*(.+)$', output, re.M))
+
+    @staticmethod
+    def exact(route, address):
+        try:
+            actual = ipaddress.IPv4Network(route.get('destination', '') + '/' + route.get('mask', '32'), strict=False)
+            return actual == ipaddress.IPv4Network(address)
+        except ValueError:
+            return False
+
+    def install(self, address):
+        if self.dry_run:
+            return False
+        gateway = Routes.lookup(self, GATEWAY)
+        bridge = gateway.get('interface', '')
+        if not re.fullmatch(r'bridge\d+', bridge) or 'GATEWAY' in gateway.get('flags', ''):
+            raise RuntimeError('Lima gateway is not on a local bridge')
+        route = self.lookup(address)
+        exact = self.exact(route, address)
+        if exact and route.get('gateway') == GATEWAY and route.get('interface') == bridge:
+            return False
+        owned = self.entries.get(address, {}).get('owned', False)
+        if exact:
+            if not (owned and route.get('gateway') == GATEWAY and 'STATIC' in route.get('flags', '')):
+                raise RuntimeError('An existing route belongs to another configuration: ' + address)
+            self.command('delete', '-net', address, GATEWAY)
+        added = self.command('add', '-net', address, GATEWAY)
+        installed = self.lookup(address)
+        if not self.exact(installed, address) or installed.get('gateway') != GATEWAY or installed.get('interface') != bridge:
+            raise RuntimeError('Could not route ' + address + ' through Lima')
+        return added.returncode == 0
+
+    def remove_entry(self, address, entry):
+        if not entry.get('owned') or self.dry_run:
+            return
+        route = self.lookup(address)
+        if self.exact(route, address) and route.get('gateway') == GATEWAY and 'STATIC' in route.get('flags', ''):
+            result = self.command('delete', '-net', address, GATEWAY)
+            if result.returncode != 0:
+                raise RuntimeError('Could not remove owned route: ' + address)
+
+    def maintain(self, remove_all=False):
+        desired = set() if remove_all else {x for x in routing_rules.load()['networks'] if '/' in x}
+        for address, entry in list(self.entries.items()):
+            if routing_rules.network(address) != address:
+                raise ValueError('Invalid persisted prefix')
+            if address not in desired:
+                self.remove_entry(address, entry)
+                del self.entries[address]
+                self.save()
+        for address in sorted(desired):
+            owned = self.install(address) or self.entries.get(address, {}).get('owned', False)
+            self.entries[address] = {'owned': owned}
             self.save()
 
 
@@ -202,7 +278,7 @@ class DomainResolver(BaseResolver):
                 for section in (response.rr, response.auth, response.ar):
                     section[:] = [rr for rr in section if not (rr.rtype == QTYPE.RRSIG and rr.rdata.covered in (28, 64, 65))]
             ttl = max([rr.ttl for rr in response.rr + response.ar] + [0])
-            self.routes.ensure(addresses, retention=RETENTION + ttl)
+            self.routes.ensure(addresses, retention=RETENTION + ttl, domain=request.q.qname)
             return response
         except Exception as error:
             logging.warning('Lima domain DNS request failed: %s', error)
@@ -216,12 +292,19 @@ def main():
     parser.add_argument('--state', default='/var/db/lazylead-domain-dns/routes.json')
     parser.add_argument('--dry-run', action='store_true')
     parser.add_argument('--remove-routes', action='store_true')
+    parser.add_argument('--reconcile', action='store_true')
     args = parser.parse_args()
     if not args.dry_run and os.geteuid() != 0:
         parser.error('root is required to manage host routes')
     routes = Routes(args.state, args.dry_run)
+    prefixes = PrefixRoutes(Path(args.state).with_name('prefixes.json'), args.dry_run)
     if args.remove_routes:
         routes.maintain(remove_all=True)
+        prefixes.maintain(remove_all=True)
+        return
+    if args.reconcile:
+        routes.maintain()
+        prefixes.maintain()
         return
     resolver = DomainResolver(routes)
     logger = DNSLogger(log='error', prefix=False)
@@ -234,6 +317,7 @@ def main():
     while all(server.isAlive() for server in servers):
         try:
             routes.maintain()
+            prefixes.maintain()
         except Exception as error:
             logging.warning('Route refresh failed: %s', error)
         time.sleep(30)

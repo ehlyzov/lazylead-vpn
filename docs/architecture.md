@@ -61,3 +61,6 @@ scoped VPN host-cache entries.
 Corporate VPN mode is preserved and enabled explicitly. It uses `snx-rs`,
 corporate routes/DNS, and browser-based SAML/2FA. Direct mode does not start
 Check Point. See [the Check Point guide](checkpoint.md).
+
+
+GUI preferences live in root-owned `/opt/lazylead-direct/domain-dns/rules.json`. The DNS helper reads them for requests and maintains explicit IPv4/CIDR routes every 30 seconds. A rule edit stops the DNS process, upgrades helper code, reconciles routes and resolver files, and restarts DNS; failures restore the prior preferences. Prefix ownership is tracked separately from learned DNS host routes. Only owned routes can be removed.

@@ -3,11 +3,13 @@
 **English** | [Русский](README.ru.md)
 
 A macOS menu bar app for managing a Lima network gateway.
-Current version: **0.4.0**. In the default mode, selected traffic goes directly
+Current version: **0.5.0**. In the default mode, selected traffic goes directly
 through the VM to your internet provider while the Mac's primary VPN stays in use.
 **Check Point remains available as a separate mode.**
 
 ## Traffic routing
+
+The table lists the default rules. Change domain and custom IPv4 rules in **Network & Routes…**.
 
 | Traffic | Path in direct mode |
 | --- | --- |
@@ -40,6 +42,7 @@ App menu:
 | `Start Lima (Direct)` | Start the VM and verify that its only IPv4 default route uses `direct0` |
 | `Stop Lima` | Stop the VM; selected sites and Transmission become unavailable |
 | `Traffic & Routes…` | Track Lima traffic totals and live speeds; see configured domains, Yandex Cloud ranges, Transmission status, and searchable IPv4 routes |
+| `Network & Routes…` | Restart Lima, repair its network bridge, and add/remove persistent domain or public IPv4/CIDR rules with macOS administrator authorization |
 | `Settings…` | View the version, mode, VM, paths, log, and routing table |
 | `Quit Lazylead VPN` / `⌘Q` | Quit the app; the VM and system services keep running |
 
@@ -54,6 +57,7 @@ Full Xcode is not required to build the app.
 ./scripts/prepare_dependencies.sh
 swift run LazyleadVPNCoreSelfTest
 PYTHONPATH=build/domain-routing/vendor python3 scripts/test_domain_dns.py
+PYTHONPATH=build/domain-routing/vendor python3 scripts/test_routing_control.py
 python3 scripts/test_host_direct_routes.py
 ./scripts/build_app_bundle.sh
 ./scripts/install_app.sh
